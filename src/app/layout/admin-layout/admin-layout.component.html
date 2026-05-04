@@ -1,0 +1,207 @@
+@if (ui.globalLoading()) {
+  <div class="loader-bar"></div>
+}
+
+<div
+  class="layout"
+  [class.mobile-layout]="ui.isMobile()"
+  [class.mobile-sidebar-open]="ui.isMobile() && ui.sidebarOpen()"
+  [class.tablet-layout]="ui.isTablet()"
+  [class.sidebar-collapsed]="!ui.isMobile() && !ui.sidebarExpanded()"
+>
+  @if (ui.isMobile() && ui.sidebarOpen()) {
+    <div class="sidebar-overlay" (click)="ui.closeSidebar()"></div>
+  }
+
+  <aside class="sidebar">
+    <div class="sidebar-panel">
+      <div class="sidebar-header">
+        <div class="logo">
+          <img
+            class="logo-icon"
+            src="assets/brand/talenthub-mark.svg"
+            alt="TalentHub logo"
+            loading="lazy"
+          />
+          <span class="logo-copy">
+            <span class="logo-text"
+              ><span class="logo-text-primary">Talent</span
+              ><span class="logo-text-accent">Hub</span></span
+            >
+            <span class="logo-subtext">HR System</span>
+          </span>
+        </div>
+        @if (ui.isMobile()) {
+          <button
+            class="btn btn-ghost btn-icon sidebar-toggle"
+            type="button"
+            aria-label="Close sidebar"
+            (click)="ui.closeSidebar()"
+          >
+            <app-icon name="close" />
+          </button>
+        }
+      </div>
+
+      <nav class="sidebar-nav">
+        @for (item of navItems; track item.route) {
+          <a
+            class="nav-item"
+            [routerLink]="item.route"
+            routerLinkActive="active"
+            [title]="item.label"
+            (click)="handleNavClick()"
+          >
+            <app-icon [name]="item.icon" extraClass="nav-icon" />
+            <span class="nav-label">{{ item.label }}</span>
+          </a>
+        }
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <div class="avatar avatar-sm">
+            @if (currentUser()?.avatar) {
+              <img
+                [src]="currentUser()!.avatar!"
+                [ngStyle]="getCurrentUserAvatarStyle()"
+                alt="avatar"
+                class="user-avatar"
+                loading="lazy"
+              />
+            } @else {
+              {{ currentUserName() | initials }}
+            }
+          </div>
+          <div class="user-details">
+            <div class="user-name">{{ currentUserName() }}</div>
+            <div class="user-email">{{ currentUserEmail() }}</div>
+          </div>
+        </div>
+        <button
+          class="btn btn-ghost btn-icon"
+          type="button"
+          aria-label="Log out"
+          (click)="logout()"
+          title="Logout"
+        >
+          <app-icon name="logout" />
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main-area">
+    <header class="topbar">
+      <div class="topbar-left">
+        @if (ui.isMobile()) {
+          <button
+            class="btn btn-ghost btn-icon mobile-menu-btn"
+            type="button"
+            aria-label="Open sidebar menu"
+            (click)="ui.openSidebar()"
+          >
+            <app-icon name="menu" />
+          </button>
+        }
+        @if (ui.isTablet()) {
+          <button
+            class="btn btn-ghost btn-icon tablet-menu-btn"
+            type="button"
+            [attr.aria-label]="
+              ui.sidebarExpanded() ? 'Collapse sidebar' : 'Expand sidebar'
+            "
+            (click)="ui.toggleSidebar()"
+            [title]="
+              ui.sidebarExpanded() ? 'Collapse sidebar' : 'Expand sidebar'
+            "
+          >
+            <app-icon [name]="ui.sidebarExpanded() ? 'menu_open' : 'menu'" />
+          </button>
+        }
+        <div class="breadcrumb">
+          <span class="text-muted">{{ getCurrentSection() }}</span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="notif-wrapper" [class.open]="notifOpen">
+          <button
+            class="btn btn-ghost btn-icon notif-btn"
+            type="button"
+            aria-label="Open notifications"
+            (click)="toggleNotif()"
+          >
+            <app-icon name="notifications" />
+            @if (socket.unreadCount() > 0) {
+              <span class="notif-badge">{{ socket.unreadCount() }}</span>
+            }
+          </button>
+          @if (notifOpen) {
+            <div class="notif-dropdown">
+              <div class="notif-header">
+                <span class="fw-bold">Notifications</span>
+                @if (socket.unreadCount() > 0) {
+                  <button
+                    class="btn btn-ghost notif-read-btn"
+                    type="button"
+                    (click)="socket.markAllRead()"
+                  >
+                    Mark all read
+                  </button>
+                }
+              </div>
+              <div class="notif-list">
+                @if (socket.notifications().length === 0) {
+                  <div class="notif-empty">No notifications yet</div>
+                }
+                @for (
+                  notification of socket.notifications().slice(0, 10);
+                  track notification._id
+                ) {
+                  <div
+                    class="notif-item"
+                    [class.unread]="!notification.read"
+                    (click)="onNotifClick(notification)"
+                  >
+                    <div class="notif-title">{{ notification.title }}</div>
+                    <div class="notif-msg">{{ notification.message }}</div>
+                    <div class="notif-time">
+                      {{ notification.createdAt | timeAgo }}
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        </div>
+
+        <button
+          class="btn btn-ghost btn-icon"
+          type="button"
+          [attr.aria-label]="
+            ui.theme() === 'dark'
+              ? 'Switch to light theme'
+              : 'Switch to dark theme'
+          "
+          (click)="ui.toggleTheme()"
+        >
+          <app-icon
+            [name]="ui.theme() === 'dark' ? 'light_mode' : 'dark_mode'"
+          />
+        </button>
+
+        <a
+          routerLink="/profile"
+          class="btn btn-ghost btn-icon"
+          aria-label="Open profile"
+        >
+          <app-icon name="account_circle" />
+        </a>
+      </div>
+    </header>
+
+    <main class="content">
+      <router-outlet />
+    </main>
+  </div>
+</div>

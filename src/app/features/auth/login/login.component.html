@@ -1,0 +1,90 @@
+<div class="login-card">
+  <div class="login-header">
+    <!-- <div class="brand-lockup">
+      <img class="brand-mark" src="assets/brand/talenthub-mark.svg" alt="TalentHub logo" />
+      <div class="brand-copy">
+        <span class="brand-name"><span class="brand-name-primary">Talent</span><span class="brand-name-accent">Hub</span></span>
+        <span class="brand-tag">HR System</span>
+      </div>
+    </div> -->
+    <h2 class="login-title">Welcome back</h2>
+    <p class="login-subtitle">
+      Sign in to your TalentHub workspace and pick up where your team left off.
+    </p>
+  </div>
+
+  <form [formGroup]="form" (ngSubmit)="onSubmit()">
+    <div class="form-group">
+      <label for="email">Email Address</label>
+      <input
+        id="email"
+        type="email"
+        class="form-control"
+        formControlName="email"
+        placeholder="you@company.com"
+        autocomplete="email"
+      />
+      @if (form.controls.email.invalid && form.controls.email.touched) {
+        <span class="field-error">
+          <app-icon name="error_outline" size="14px" />
+          Enter a valid email address
+        </span>
+      }
+    </div>
+
+    <div class="form-group">
+      <label for="password">Password</label>
+      <div class="password-field">
+        <input
+          id="password"
+          [type]="showPwd() ? 'text' : 'password'"
+          class="form-control"
+          formControlName="password"
+          placeholder="********"
+          autocomplete="current-password"
+        />
+        <button
+          type="button"
+          class="pwd-toggle"
+          [attr.aria-label]="showPwd() ? 'Hide password' : 'Show password'"
+          (click)="togglePasswordVisibility()"
+        >
+          <app-icon
+            [name]="showPwd() ? 'visibility_off' : 'visibility'"
+            size="18px"
+          />
+        </button>
+      </div>
+      @if (form.controls.password.invalid && form.controls.password.touched) {
+        <span class="field-error">
+          <app-icon name="error_outline" size="14px" />
+          Password is required
+        </span>
+      }
+    </div>
+
+    <div class="forgot-link">
+      <a routerLink="/auth/forgot-password">Forgot password?</a>
+    </div>
+
+    @if (errorMsg()) {
+      <div class="error-alert">
+        <app-icon name="error" size="16px" />
+        {{ errorMsg() }}
+      </div>
+    }
+
+    <button
+      type="submit"
+      class="btn btn-primary btn-lg submit-btn"
+      [disabled]="form.invalid || loading()"
+    >
+      @if (loading()) {
+        <span class="spinner"></span>
+      } @else {
+        <app-icon name="login" size="18px" />
+      }
+      {{ loading() ? "Signing in..." : "Sign In" }}
+    </button>
+  </form>
+</div>

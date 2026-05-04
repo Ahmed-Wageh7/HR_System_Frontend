@@ -1,0 +1,38 @@
+<div class="auth-shell">
+  <div class="auth-branding">
+    <div class="brand-content">
+      <div class="brand-lockup">
+        <img
+          class="brand-mark"
+          src="assets/brand/talenthub-mark.svg"
+          alt="TalentHub logo"
+          loading="lazy"
+        />
+        <div class="brand-wordmark">
+          <div class="brand-title">
+            <span class="brand-title-primary">Talent</span
+            ><span class="brand-title-accent">Hub</span>
+          </div>
+          <div class="brand-subtitle">HR System</div>
+        </div>
+      </div>
+      <p class="brand-tagline">
+        Intelligent workforce operations with a bold, modern control center for
+        people, payroll, attendance, and support.
+      </p>
+      <div class="brand-features">
+        @for (feature of features; track feature.icon) {
+          <div class="brand-feature">
+            <app-icon [name]="feature.icon" size="18px" />
+            <span>{{ feature.text }}</span>
+          </div>
+        }
+      </div>
+    </div>
+    <div class="brand-bg"></div>
+  </div>
+
+  <div class="auth-content">
+    <router-outlet />
+  </div>
+</div>

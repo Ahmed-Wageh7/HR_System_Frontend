@@ -1,0 +1,10 @@
+<div class="toast-container" aria-live="polite">
+  @for (toast of toasts(); track toast.id) {
+    <div class="toast" [class]="'toast toast-' + toast.type" (click)="removeToast(toast.id)">
+      <app-icon [name]="getIcon(toast.type)" size="18px" />
+      <span>{{ toast.message }}</span>
+    </div>
+  }
+</div>
+
+<router-outlet />
