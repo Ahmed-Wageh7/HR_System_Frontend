@@ -337,8 +337,8 @@ import { forkJoin } from 'rxjs';
     />
 
     @if (modalOpen) {
-      <div class="modal-backdrop staff-modal-backdrop" (click)="closeModal()">
-        <div class="modal staff-modal" (click)="$event.stopPropagation()">
+      <div class="modal-backdrop form-backdrop staff-modal-backdrop" (click)="closeModal()">
+        <div class="modal modal-form-wide staff-modal" (click)="$event.stopPropagation()">
           <div class="modal-header">
             <div class="modal-title">{{ modalTitle }}</div>
             <button class="btn btn-ghost btn-icon" (click)="closeModal()">
@@ -365,16 +365,8 @@ import { forkJoin } from 'rxjs';
       z-index: 100;
     }
 
-    .staff-modal-backdrop {
-      align-items: flex-start;
-      overflow-y: auto;
-    }
-
     .staff-modal {
-      width: min(100%, 860px);
-      max-width: 860px;
-      max-height: 78vh;
-      margin: 24px 0;
+      margin: 0;
     }
 
     .staff-name-cell {

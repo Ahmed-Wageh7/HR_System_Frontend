@@ -3,6 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ActionMessage, ApiResponse, AttendanceRecord, AttendanceSummary, Deduction, DeductionPayload, Pagination, SalaryRecord, Staff, StaffAttendanceQuery, StaffCreatePayload, StaffDocument, StaffUpdatePayload } from '../models';
+import { showAppToast } from '../utils/toast';
 
 export interface StaffQuery {
   page?: number;
@@ -42,25 +43,37 @@ export class StaffService {
 
   create(payload: StaffCreatePayload): Observable<ApiResponse<Staff>> {
     return this.http.post<ApiResponse<Staff>>(`${this.api}/admin/staff`, payload).pipe(
-      tap(() => this.invalidateCache())
+      tap(() => {
+        this.invalidateCache();
+        showAppToast('success', 'Staff member created successfully.');
+      })
     );
   }
 
   update(id: string, payload: StaffUpdatePayload): Observable<ApiResponse<Staff>> {
     return this.http.put<ApiResponse<Staff>>(`${this.api}/admin/staff/${id}`, payload).pipe(
-      tap(() => this.invalidateCache())
+      tap(() => {
+        this.invalidateCache();
+        showAppToast('success', 'Staff member updated successfully.');
+      })
     );
   }
 
   delete(id: string): Observable<ApiResponse<Partial<Staff>>> {
     return this.http.delete<ApiResponse<Partial<Staff>>>(`${this.api}/admin/staff/${id}`).pipe(
-      tap(() => this.invalidateCache())
+      tap(() => {
+        this.invalidateCache();
+        showAppToast('success', 'Staff member deleted successfully.');
+      })
     );
   }
 
   restore(id: string): Observable<ApiResponse<Partial<Staff>>> {
     return this.http.patch<ApiResponse<Partial<Staff>>>(`${this.api}/admin/staff/${id}/restore`, {}).pipe(
-      tap(() => this.invalidateCache())
+      tap(() => {
+        this.invalidateCache();
+        showAppToast('success', 'Staff member restored successfully.');
+      })
     );
   }
 
@@ -81,15 +94,21 @@ export class StaffService {
   }
 
   paySalary(id: string, month: string): Observable<ApiResponse<SalaryRecord>> {
-    return this.http.post<ApiResponse<SalaryRecord>>(`${this.api}/admin/staff/${id}/salary/${month}/pay`, {});
+    return this.http.post<ApiResponse<SalaryRecord>>(`${this.api}/admin/staff/${id}/salary/${month}/pay`, {}).pipe(
+      tap(() => showAppToast('success', 'Salary paid successfully.'))
+    );
   }
 
   adjustSalary(id: string, month: string, adjustments: number): Observable<ApiResponse<ActionMessage>> {
-    return this.http.put<ApiResponse<ActionMessage>>(`${this.api}/admin/staff/${id}/salary/${month}/adjust`, { adjustments });
+    return this.http.put<ApiResponse<ActionMessage>>(`${this.api}/admin/staff/${id}/salary/${month}/adjust`, { adjustments }).pipe(
+      tap(() => showAppToast('success', 'Salary adjustment saved successfully.'))
+    );
   }
 
   bulkPay(month: string): Observable<ApiResponse<ActionMessage>> {
-    return this.http.post<ApiResponse<ActionMessage>>(`${this.api}/admin/staff/salary/${month}/bulk-pay`, {});
+    return this.http.post<ApiResponse<ActionMessage>>(`${this.api}/admin/staff/salary/${month}/bulk-pay`, {}).pipe(
+      tap(() => showAppToast('success', 'Bulk salary payment completed successfully.'))
+    );
   }
 
   getDeductions(id: string): Observable<ApiResponse<Deduction[]>> {
@@ -97,25 +116,35 @@ export class StaffService {
   }
 
   addDeduction(id: string, payload: DeductionPayload): Observable<ApiResponse<Deduction>> {
-    return this.http.post<ApiResponse<Deduction>>(`${this.api}/admin/staff/${id}/deductions`, payload);
+    return this.http.post<ApiResponse<Deduction>>(`${this.api}/admin/staff/${id}/deductions`, payload).pipe(
+      tap(() => showAppToast('success', 'Deduction added successfully.'))
+    );
   }
 
   updateDeduction(staffId: string, did: string, payload: DeductionPayload): Observable<ApiResponse<Deduction>> {
-    return this.http.put<ApiResponse<Deduction>>(`${this.api}/admin/staff/${staffId}/deductions/${did}`, payload);
+    return this.http.put<ApiResponse<Deduction>>(`${this.api}/admin/staff/${staffId}/deductions/${did}`, payload).pipe(
+      tap(() => showAppToast('success', 'Deduction updated successfully.'))
+    );
   }
 
   deleteDeduction(staffId: string, did: string): Observable<ApiResponse<ActionMessage>> {
-    return this.http.delete<ApiResponse<ActionMessage>>(`${this.api}/admin/staff/${staffId}/deductions/${did}`);
+    return this.http.delete<ApiResponse<ActionMessage>>(`${this.api}/admin/staff/${staffId}/deductions/${did}`).pipe(
+      tap(() => showAppToast('success', 'Deduction deleted successfully.'))
+    );
   }
 
   uploadDocument(id: string, file: File): Observable<ApiResponse<StaffDocument>> {
     const form = new FormData();
     form.append('document', file);
-    return this.http.post<ApiResponse<StaffDocument>>(`${this.api}/admin/staff/${id}/documents`, form);
+    return this.http.post<ApiResponse<StaffDocument>>(`${this.api}/admin/staff/${id}/documents`, form).pipe(
+      tap(() => showAppToast('success', 'Document uploaded successfully.'))
+    );
   }
 
   deleteDocument(staffId: string, docId: string): Observable<ApiResponse<ActionMessage>> {
-    return this.http.delete<ApiResponse<ActionMessage>>(`${this.api}/admin/staff/${staffId}/documents/${docId}`);
+    return this.http.delete<ApiResponse<ActionMessage>>(`${this.api}/admin/staff/${staffId}/documents/${docId}`).pipe(
+      tap(() => showAppToast('success', 'Document deleted successfully.'))
+    );
   }
 
   uploadAvatar(file: File): Observable<unknown> {

@@ -87,8 +87,8 @@ import { CurrencyFormatPipe, DateFormatPipe } from '../../../shared/pipes/pipes'
     </div>
 
     @if (formOpen) {
-      <div class="modal-backdrop" (click)="resetForm()">
-        <div class="modal deduction-modal" (click)="$event.stopPropagation()">
+      <div class="modal-backdrop form-backdrop" (click)="resetForm()">
+        <div class="modal modal-form deduction-modal" (click)="$event.stopPropagation()">
           <div class="modal-header">
             <div>
               <div class="modal-title">{{ editingId ? 'Update Deduction' : 'Create Deduction' }}</div>
@@ -200,8 +200,8 @@ import { CurrencyFormatPipe, DateFormatPipe } from '../../../shared/pipes/pipes'
     }
 
     .deduction-modal {
-      width: min(100%, 620px);
-      max-width: 620px;
+      width: min(100%, 560px);
+      max-width: 560px;
     }
 
     .section-loading {

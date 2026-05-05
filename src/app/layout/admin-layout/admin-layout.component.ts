@@ -58,12 +58,16 @@ export class AdminLayoutComponent implements OnInit {
     return this.router.url.split('?')[0].startsWith('/staff');
   }
 
+  get activeStaffWorkspaceId(): string | null {
+    return this.getSidebarStaffId();
+  }
+
   get showStaffSubnav(): boolean {
     return this.isStaffRoute;
   }
 
   get staffSubnav(): NestedNavItem[] {
-    const activeStaffId = this.getSidebarStaffId();
+    const activeStaffId = this.activeStaffWorkspaceId;
     const staffBase = activeStaffId ? `/staff/${activeStaffId}` : null;
     return [
       { label: 'Staff Info', route: staffBase ? `${staffBase}/profile` : null },
@@ -129,6 +133,14 @@ export class AdminLayoutComponent implements OnInit {
     }
 
     this.handleNavClick();
+  }
+
+  isNestedNavItemActive(route: string | null): boolean {
+    if (!route) {
+      return false;
+    }
+
+    return this.router.url.split('?')[0] === route;
   }
 
   getCurrentSection(): string {

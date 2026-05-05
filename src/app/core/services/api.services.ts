@@ -1,8 +1,9 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, shareReplay } from 'rxjs';
+import { Observable, shareReplay, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ApiResponse, Leave, LeavePayload, Role, RoleDeleteResult, RolePayload, RoleQuery, Ticket, TicketQuery, TicketReply, TicketStatusPayload, AuditLog, PayrollReport, AttendanceReport, AttendanceRecord, User } from '../models';
+import { showAppToast } from '../utils/toast';
 
 // ── Leave Service ──────────────────────────────────────────
 @Injectable({ providedIn: 'root' })
@@ -11,7 +12,9 @@ export class LeaveService {
   private readonly api = environment.apiUrl;
 
   submit(payload: LeavePayload): Observable<ApiResponse<Leave>> {
-    return this.http.post<ApiResponse<Leave>>(`${this.api}/leaves`, payload);
+    return this.http.post<ApiResponse<Leave>>(`${this.api}/leaves`, payload).pipe(
+      tap(() => showAppToast('success', 'Leave request submitted successfully.'))
+    );
   }
 
   getMyLeaves(): Observable<ApiResponse<Leave[]>> {
@@ -23,7 +26,9 @@ export class LeaveService {
   }
 
   deleteMyLeave(id: string): Observable<void> {
-    return this.http.delete<void>(`${this.api}/leaves/${id}`);
+    return this.http.delete<void>(`${this.api}/leaves/${id}`).pipe(
+      tap(() => showAppToast('success', 'Leave request cancelled successfully.'))
+    );
   }
 
   // Admin
@@ -32,7 +37,9 @@ export class LeaveService {
   }
 
   updateStatus(id: string, status: 'approved' | 'rejected', reviewNote?: string | null): Observable<ApiResponse<Leave>> {
-    return this.http.patch<ApiResponse<Leave>>(`${this.api}/admin/leaves/${id}/status`, { status, reviewNote });
+    return this.http.patch<ApiResponse<Leave>>(`${this.api}/admin/leaves/${id}/status`, { status, reviewNote }).pipe(
+      tap(() => showAppToast('success', `Leave request ${status} successfully.`))
+    );
   }
 }
 
@@ -63,17 +70,23 @@ export class RoleService {
 
   create(payload: RolePayload): Observable<ApiResponse<Role>> {
     this._cache$ = undefined;
-    return this.http.post<ApiResponse<Role>>(`${this.api}/admin/roles`, payload);
+    return this.http.post<ApiResponse<Role>>(`${this.api}/admin/roles`, payload).pipe(
+      tap(() => showAppToast('success', 'Role created successfully.'))
+    );
   }
 
   update(id: string, payload: Partial<RolePayload>): Observable<ApiResponse<Role>> {
     this._cache$ = undefined;
-    return this.http.put<ApiResponse<Role>>(`${this.api}/admin/roles/${id}`, payload);
+    return this.http.put<ApiResponse<Role>>(`${this.api}/admin/roles/${id}`, payload).pipe(
+      tap(() => showAppToast('success', 'Role updated successfully.'))
+    );
   }
 
   delete(id: string): Observable<ApiResponse<RoleDeleteResult>> {
     this._cache$ = undefined;
-    return this.http.delete<ApiResponse<RoleDeleteResult>>(`${this.api}/admin/roles/${id}`);
+    return this.http.delete<ApiResponse<RoleDeleteResult>>(`${this.api}/admin/roles/${id}`).pipe(
+      tap(() => showAppToast('success', 'Role deleted successfully.'))
+    );
   }
 
   addPermissions(id: string, permissions: string[]): Observable<ApiResponse<Role>> {
@@ -103,7 +116,9 @@ export class TicketService {
   private readonly api = environment.apiUrl;
 
   create(payload: { subject: string; description: string }): Observable<ApiResponse<Ticket>> {
-    return this.http.post<ApiResponse<Ticket>>(`${this.api}/tickets`, payload);
+    return this.http.post<ApiResponse<Ticket>>(`${this.api}/tickets`, payload).pipe(
+      tap(() => showAppToast('success', 'Ticket created successfully.'))
+    );
   }
 
   getAll(query: TicketQuery = {}): Observable<ApiResponse<Ticket[]>> {
@@ -120,11 +135,15 @@ export class TicketService {
   }
 
   reply(id: string, message: string): Observable<ApiResponse<Ticket>> {
-    return this.http.post<ApiResponse<Ticket>>(`${this.api}/tickets/${id}/reply`, { message });
+    return this.http.post<ApiResponse<Ticket>>(`${this.api}/tickets/${id}/reply`, { message }).pipe(
+      tap(() => showAppToast('success', 'Reply sent successfully.'))
+    );
   }
 
   updateStatus(id: string, payload: TicketStatusPayload): Observable<ApiResponse<Ticket>> {
-    return this.http.patch<ApiResponse<Ticket>>(`${this.api}/admin/tickets/${id}/status`, payload);
+    return this.http.patch<ApiResponse<Ticket>>(`${this.api}/admin/tickets/${id}/status`, payload).pipe(
+      tap(() => showAppToast('success', 'Ticket status updated successfully.'))
+    );
   }
 
   private normalizeSort(sort: string): string {
@@ -178,11 +197,15 @@ export class AttendanceService {
   private readonly api = environment.apiUrl;
 
   checkIn(): Observable<ApiResponse<AttendanceRecord>> {
-    return this.http.post<ApiResponse<AttendanceRecord>>(`${this.api}/staff/checkin`, {});
+    return this.http.post<ApiResponse<AttendanceRecord>>(`${this.api}/staff/checkin`, {}).pipe(
+      tap(() => showAppToast('success', 'Checked in successfully.'))
+    );
   }
 
   checkOut(): Observable<ApiResponse<AttendanceRecord>> {
-    return this.http.post<ApiResponse<AttendanceRecord>>(`${this.api}/staff/checkout`, {});
+    return this.http.post<ApiResponse<AttendanceRecord>>(`${this.api}/staff/checkout`, {}).pipe(
+      tap(() => showAppToast('success', 'Checked out successfully.'))
+    );
   }
 }
 
@@ -197,25 +220,35 @@ export class UserService {
   }
 
   updateProfile(payload: { name: string; phone?: string | null }): Observable<ApiResponse<User>> {
-    return this.http.put<ApiResponse<User>>(`${this.api}/users/profile`, payload);
+    return this.http.put<ApiResponse<User>>(`${this.api}/users/profile`, payload).pipe(
+      tap(() => showAppToast('success', 'Profile updated successfully.'))
+    );
   }
 
   deleteAccount(): Observable<void> {
-    return this.http.delete<void>(`${this.api}/users/profile`);
+    return this.http.delete<void>(`${this.api}/users/profile`).pipe(
+      tap(() => showAppToast('success', 'Account deleted successfully.'))
+    );
   }
 
   uploadAvatar(file: File): Observable<unknown> {
     const form = new FormData();
     form.append('avatar', file);
-    return this.http.post(`${this.api}/users/upload-avatar`, form);
+    return this.http.post(`${this.api}/users/upload-avatar`, form).pipe(
+      tap(() => showAppToast('success', 'Profile photo updated successfully.'))
+    );
   }
 
   deleteAvatar(): Observable<void> {
-    return this.http.delete<void>(`${this.api}/users/avatar`);
+    return this.http.delete<void>(`${this.api}/users/avatar`).pipe(
+      tap(() => showAppToast('success', 'Profile photo deleted successfully.'))
+    );
   }
 
   restoreUser(id: string): Observable<void> {
-    return this.http.patch<void>(`${this.api}/admin/users/${id}/restore`, {});
+    return this.http.patch<void>(`${this.api}/admin/users/${id}/restore`, {}).pipe(
+      tap(() => showAppToast('success', 'User restored successfully.'))
+    );
   }
 }
 

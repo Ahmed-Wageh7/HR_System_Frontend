@@ -125,8 +125,8 @@ import { StaffFormComponent } from '../form/staff-form.component';
     }
 
     @if (editModalOpen && staff) {
-      <div class="modal-backdrop staff-edit-backdrop" (click)="closeEditModal()">
-        <div class="modal staff-edit-modal" (click)="$event.stopPropagation()">
+      <div class="modal-backdrop form-backdrop staff-edit-backdrop" (click)="closeEditModal()">
+        <div class="modal modal-form-wide staff-edit-modal" (click)="$event.stopPropagation()">
           <div class="modal-header">
             <div>
               <div class="modal-title">Edit Staff</div>
@@ -248,16 +248,8 @@ import { StaffFormComponent } from '../form/staff-form.component';
       padding-right: 4px;
     }
 
-    .staff-edit-backdrop {
-      align-items: flex-start;
-      overflow-y: auto;
-    }
-
     .staff-edit-modal {
-      width: min(100%, 860px);
-      max-width: 860px;
-      max-height: 78vh;
-      margin: 24px 0;
+      margin: 0;
     }
 
     @media (max-width: 900px) {

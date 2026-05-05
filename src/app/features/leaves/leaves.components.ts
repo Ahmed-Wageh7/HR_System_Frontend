@@ -9,6 +9,7 @@ import { DateFormatPipe, TimeAgoPipe } from '../../shared/pipes/pipes';
 import { HasPermissionDirective } from '../../shared/directives/has-permission.directive';
 import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog.component';
 import { differenceInDays, parseISO } from 'date-fns';
+import { showAppToast } from '../../core/utils/toast';
 
 // ── Leave List ─────────────────────────────────────────────
 @Component({
@@ -30,8 +31,8 @@ import { differenceInDays, parseISO } from 'date-fns';
     </div>
 
     @if (requestOpen) {
-      <div class="modal-backdrop" (click)="closeRequestModal()">
-        <div class="modal" style="max-width:640px;max-height:78vh;overflow-y:auto" (click)="$event.stopPropagation()">
+      <div class="modal-backdrop form-backdrop" (click)="closeRequestModal()">
+        <div class="modal modal-form" (click)="$event.stopPropagation()">
           <div class="modal-header">
             <div>
               <div class="modal-title">Request Leave</div>
@@ -227,8 +228,8 @@ export class LeaveListComponent implements OnInit {
     </div>
     }
 
-    <form [formGroup]="form" (ngSubmit)="onSubmit()" style="max-width:560px">
-      <div class="card">
+    <form [formGroup]="form" (ngSubmit)="onSubmit()" style="max-width:560px" [class.embedded-form]="embedded">
+      <div class="card" [class.embedded-card]="embedded">
         <div class="form-group">
           <label>Start Date *</label>
           <input type="date" class="form-control" formControlName="startDate" [min]="today">
@@ -259,7 +260,7 @@ export class LeaveListComponent implements OnInit {
           }
         </div>
 
-        <div class="flex gap-8">
+        <div class="flex gap-8" [class.embedded-actions]="embedded">
           <button type="submit" class="btn btn-primary btn-lg" [disabled]="form.invalid || submitting">
             @if (submitting) { <span class="spinner"></span> }
             <span class="material-icons" style="font-size:18px">send</span>
@@ -274,7 +275,30 @@ export class LeaveListComponent implements OnInit {
       </div>
     </form>
   `,
-  styles: [`.info-box{background:var(--info-dim);border:1px solid rgba(59,130,246,.2);padding:10px 14px;border-radius:var(--radius-sm);font-size:13px;display:flex;align-items:center;gap:8px;color:var(--text-secondary)}`]
+  styles: [`
+    .info-box{background:var(--info-dim);border:1px solid rgba(59,130,246,.2);padding:10px 14px;border-radius:var(--radius-sm);font-size:13px;display:flex;align-items:center;gap:8px;color:var(--text-secondary)}
+    .embedded-form .embedded-card { padding: 16px; }
+    .embedded-form .form-group { margin-bottom: 14px; }
+    .embedded-form .embedded-actions { justify-content: flex-end; }
+    .embedded-form .embedded-actions .btn { padding: 9px 14px; font-size: 13px; }
+    @media (max-width: 640px) {
+      .embedded-form .embedded-card { padding: 10px; }
+      .embedded-form .form-group { margin-bottom: 8px; }
+      .embedded-form label { font-size: 11px; }
+      .embedded-form .form-control { font-size: 13px; padding: 9px 10px; }
+      .embedded-form .embedded-actions {
+        flex-direction: row;
+        align-items: center;
+        gap: 8px;
+      }
+      .embedded-form .embedded-actions .btn {
+        flex: 1 1 0;
+        justify-content: center;
+        padding: 8px 10px;
+        font-size: 12px;
+      }
+    }
+  `]
 })
 export class LeaveFormComponent {
   @Input() embedded = false;
@@ -307,7 +331,7 @@ export class LeaveFormComponent {
   onSubmit(): void {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
-      window.dispatchEvent(new CustomEvent('app:toast', { detail: { type: 'warning', message: 'Please complete the leave request form first.' } }));
+      showAppToast('warning', 'Please complete the leave request form first.');
       return;
     }
     this.submitting = true;

@@ -7,6 +7,7 @@ import { DepartmentService } from '../../../core/services/department.service';
 import { Department, Staff } from '../../../core/models';
 import { CanComponentDeactivate } from '../../../core/guards/guards';
 import { format } from 'date-fns';
+import { showAppToast } from '../../../core/utils/toast';
 
 @Component({
   selector: 'app-staff-form',
@@ -27,9 +28,9 @@ import { format } from 'date-fns';
       </div>
     }
 
-    <form [formGroup]="form" (ngSubmit)="onSubmit()" [style.max-width]="embedded ? '100%' : '700px'">
+    <form [formGroup]="form" (ngSubmit)="onSubmit()" [style.max-width]="embedded ? '100%' : '700px'" [class.embedded-form]="embedded">
       <!-- Personal Info -->
-      <div class="card mb-16">
+      <div class="card" [class.mb-16]="!embedded" [class.embedded-card]="embedded">
         <div class="fw-bold mb-16">Personal Information</div>
         <div class="form-row">
           <div class="form-group">
@@ -56,7 +57,7 @@ import { format } from 'date-fns';
       </div>
 
       <!-- Employment Info -->
-      <div class="card mb-16">
+      <div class="card" [class.mb-16]="!embedded" [class.embedded-card]="embedded">
         <div class="fw-bold mb-16">Employment Details</div>
         <div class="form-row">
           <div class="form-group">
@@ -95,7 +96,7 @@ import { format } from 'date-fns';
         }
       </div>
 
-      <div class="flex gap-8">
+      <div class="flex gap-8" [class.embedded-actions]="embedded">
         <button type="submit" class="btn btn-primary btn-lg" [disabled]="form.invalid || submitting">
           @if (submitting) { <span class="spinner"></span> }
           <span class="material-icons" style="font-size:18px">{{ isEdit ? 'save' : 'person_add' }}</span>
@@ -104,7 +105,86 @@ import { format } from 'date-fns';
         <button type="button" class="btn btn-secondary btn-lg" (click)="onCancel()">Cancel</button>
       </div>
     </form>
-  `
+  `,
+  styles: [`
+    .embedded-form {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .embedded-card {
+      padding: 16px;
+    }
+
+    .embedded-form .fw-bold {
+      margin-bottom: 12px !important;
+    }
+
+    .embedded-form .form-group {
+      margin-bottom: 14px;
+    }
+
+    .embedded-form .form-row {
+      gap: 12px;
+    }
+
+    .embedded-actions {
+      justify-content: flex-end;
+      padding-top: 4px;
+    }
+
+    .embedded-actions .btn {
+      padding: 9px 14px;
+      font-size: 13px;
+    }
+
+    @media (max-width: 640px) {
+      .embedded-form {
+        gap: 8px;
+      }
+
+      .embedded-card {
+        padding: 10px;
+      }
+
+      .embedded-form .fw-bold {
+        margin-bottom: 8px !important;
+        font-size: 13px;
+      }
+
+      .embedded-form .form-group {
+        margin-bottom: 8px;
+      }
+
+      .embedded-form .form-row {
+        gap: 8px;
+        grid-template-columns: 1fr;
+      }
+
+      .embedded-form label {
+        font-size: 11px;
+      }
+
+      .embedded-form .form-control {
+        font-size: 13px;
+        padding: 9px 10px;
+      }
+
+      .embedded-actions {
+        flex-direction: row;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .embedded-actions .btn {
+        flex: 1 1 0;
+        justify-content: center;
+        padding: 8px 10px;
+        font-size: 12px;
+      }
+    }
+  `]
 })
 export class StaffFormComponent implements OnInit, CanComponentDeactivate {
   @Input() staffId?: string | null;
@@ -178,7 +258,7 @@ export class StaffFormComponent implements OnInit, CanComponentDeactivate {
   onSubmit(): void {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
-      window.dispatchEvent(new CustomEvent('app:toast', { detail: { type: 'warning', message: 'Please complete the staff form first.' } }));
+      showAppToast('warning', 'Please complete the staff form first.');
       return;
     }
     this.submitting = true;

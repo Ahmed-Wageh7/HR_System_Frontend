@@ -1,8 +1,9 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, shareReplay } from 'rxjs';
+import { Observable, shareReplay, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ApiResponse, Department, DepartmentDeleteResult, DepartmentQuery } from '../models';
+import { showAppToast } from '../utils/toast';
 
 @Injectable({ providedIn: 'root' })
 export class DepartmentService {
@@ -35,22 +36,30 @@ export class DepartmentService {
 
   create(payload: { name: string; description?: string }): Observable<ApiResponse<Department>> {
     this.invalidate();
-    return this.http.post<ApiResponse<Department>>(`${this.api}/admin/departments`, payload);
+    return this.http.post<ApiResponse<Department>>(`${this.api}/admin/departments`, payload).pipe(
+      tap(() => showAppToast('success', 'Department created successfully.'))
+    );
   }
 
   update(id: string, payload: { name?: string; description?: string }): Observable<ApiResponse<Department>> {
     this.invalidate();
-    return this.http.put<ApiResponse<Department>>(`${this.api}/admin/departments/${id}`, payload);
+    return this.http.put<ApiResponse<Department>>(`${this.api}/admin/departments/${id}`, payload).pipe(
+      tap(() => showAppToast('success', 'Department updated successfully.'))
+    );
   }
 
   delete(id: string): Observable<ApiResponse<DepartmentDeleteResult>> {
     this.invalidate();
-    return this.http.delete<ApiResponse<DepartmentDeleteResult>>(`${this.api}/admin/departments/${id}`);
+    return this.http.delete<ApiResponse<DepartmentDeleteResult>>(`${this.api}/admin/departments/${id}`).pipe(
+      tap(() => showAppToast('success', 'Department deleted successfully.'))
+    );
   }
 
   restore(id: string): Observable<ApiResponse<Department>> {
     this.invalidate();
-    return this.http.patch<ApiResponse<Department>>(`${this.api}/admin/departments/${id}/restore`, {});
+    return this.http.patch<ApiResponse<Department>>(`${this.api}/admin/departments/${id}/restore`, {}).pipe(
+      tap(() => showAppToast('success', 'Department restored successfully.'))
+    );
   }
 
   private invalidate(): void {

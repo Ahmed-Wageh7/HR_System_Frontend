@@ -63,10 +63,9 @@
                 @for (subItem of staffSubnav; track subItem.route) {
                   <a
                     class="nested-nav-item"
+                    [class.active]="isNestedNavItemActive(subItem.route)"
                     [class.disabled]="!subItem.route"
-                    [routerLink]="subItem.route || '/staff'"
-                    routerLinkActive="active"
-                    [routerLinkActiveOptions]="{ exact: !!subItem.route }"
+                    [routerLink]="subItem.route || null"
                     (click)="handleNavClick()"
                   >
                     <span class="nested-nav-dot"></span>

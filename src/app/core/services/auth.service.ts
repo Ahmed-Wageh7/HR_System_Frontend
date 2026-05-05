@@ -5,11 +5,16 @@ import { Router } from "@angular/router";
 import { environment } from "../../../environments/environment";
 import { TokenService } from "./token.service";
 import { ApiResponse, AuthResponse, User } from "../models";
+import { showAppToast } from "../utils/toast";
 
 type AuthApiResponse = ApiResponse<AuthResponse> & {
   refreshToken?: string;
   accessToken?: string;
   user?: User;
+  tokens?: {
+    accessToken?: string;
+    refreshToken?: string;
+  };
 };
 
 @Injectable({ providedIn: "root" })
@@ -78,16 +83,25 @@ export class AuthService {
   }
 
   logout(): Observable<void> {
+    const refreshToken = this.getEffectiveRefreshToken();
+    if (!refreshToken) {
+      this.clearSession("/auth/login");
+      return of(void 0);
+    }
+
     return this.http
       .post<void>(
         `${this.api}/auth/logout`,
-        {},
+        { refreshToken },
         { withCredentials: true },
       )
       .pipe(
         catchError(() => of(void 0)),
         map(() => void 0),
-        tap(() => this.clearSession("/auth/login")),
+        tap(() => {
+          this.clearSession("/auth/login");
+          showAppToast("success", "Logged out successfully.");
+        }),
       );
   }
 
@@ -168,9 +182,22 @@ export class AuthService {
   }
 
   private extractAuthResponse(response: AuthApiResponse): AuthResponse {
-    const data = response.data ?? ({} as AuthResponse);
-    const accessToken = data.accessToken || response.accessToken;
-    const refreshToken = data.refreshToken || response.refreshToken;
+    const data = (response.data as AuthResponse & {
+      tokens?: {
+        accessToken?: string;
+        refreshToken?: string;
+      };
+    }) ?? {};
+    const accessToken =
+      data.accessToken ||
+      data.tokens?.accessToken ||
+      response.accessToken ||
+      response.tokens?.accessToken;
+    const refreshToken =
+      data.refreshToken ||
+      data.tokens?.refreshToken ||
+      response.refreshToken ||
+      response.tokens?.refreshToken;
     const user = data.user || response.user;
 
     return {

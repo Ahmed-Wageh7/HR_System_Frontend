@@ -29,8 +29,8 @@ import { ConfirmDialogComponent } from '../shared/components/confirm-dialog.comp
 
     <!-- Create/Edit Form Modal -->
     @if (formOpen) {
-      <div class="modal-backdrop" (click)="formOpen=false">
-        <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-backdrop form-backdrop" (click)="formOpen=false">
+        <div class="modal modal-form" (click)="$event.stopPropagation()">
           <div class="modal-header">
             <div class="modal-title">{{ editing ? 'Edit Department' : 'New Department' }}</div>
             <button class="btn btn-ghost btn-icon" (click)="formOpen=false"><span class="material-icons">close</span></button>
@@ -389,8 +389,8 @@ const ALL_PERMISSIONS = [
 
     <!-- Edit Modal -->
     @if (editOpen) {
-      <div class="modal-backdrop" (click)="editOpen=false">
-        <div class="modal" style="max-width:640px;max-height:90vh;overflow-y:auto" (click)="$event.stopPropagation()">
+      <div class="modal-backdrop form-backdrop" (click)="editOpen=false">
+        <div class="modal modal-form" (click)="$event.stopPropagation()">
           <div class="modal-header">
             <div class="modal-title">{{ editingRole ? 'Edit Role' : 'New Role' }}</div>
             <button class="btn btn-ghost btn-icon" (click)="editOpen=false"><span class="material-icons">close</span></button>
