@@ -6,13 +6,12 @@ import { format } from 'date-fns';
 import { Deduction, DeductionPayload } from '../../../core/models';
 import { StaffService } from '../../../core/services/staff.service';
 import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialog.component';
-import { HasPermissionDirective } from '../../../shared/directives/has-permission.directive';
 import { CurrencyFormatPipe, DateFormatPipe } from '../../../shared/pipes/pipes';
 
 @Component({
   selector: 'app-staff-deductions-section',
   standalone: true,
-  imports: [CommonModule, FormsModule, HasPermissionDirective, CurrencyFormatPipe, DateFormatPipe, ConfirmDialogComponent],
+  imports: [CommonModule, FormsModule, CurrencyFormatPipe, DateFormatPipe, ConfirmDialogComponent],
   template: `
     <div class="section-stack">
       <div class="card">
@@ -21,34 +20,26 @@ import { CurrencyFormatPipe, DateFormatPipe } from '../../../shared/pipes/pipes'
             <div class="section-title">Manual Deductions</div>
             <div class="section-subtitle">Create, update, delete, and review staff deductions.</div>
           </div>
-          <button *hasPermission="'salary:update'" class="btn btn-secondary" (click)="startCreate()">
+          <button class="btn btn-secondary" [disabled]="saving" (click)="startCreate()">
             <span class="material-icons" style="font-size:16px">add</span>
             Add Deduction
           </button>
         </div>
 
-        @if (formOpen) {
-          <div class="editor-panel">
-            <div class="editor-grid">
-              <div class="form-group">
-                <label>Month</label>
-                <input type="month" class="form-control" [(ngModel)]="draft.month">
-              </div>
-              <div class="form-group">
-                <label>Amount</label>
-                <input type="number" class="form-control" [(ngModel)]="draft.amount" min="0">
-              </div>
-            </div>
-            <div class="form-group">
-              <label>Reason</label>
-              <input type="text" class="form-control" [(ngModel)]="draft.reason" placeholder="Enter deduction reason">
-            </div>
-            <div class="editor-actions">
-              <button class="btn btn-primary" (click)="saveDeduction()">{{ editingId ? 'Update Deduction' : 'Create Deduction' }}</button>
-              <button class="btn btn-ghost" (click)="resetForm()">Cancel</button>
-            </div>
+        <div class="deduction-summary">
+          <div class="summary-tile">
+            <span class="summary-label">Entries</span>
+            <strong>{{ deductions.length }}</strong>
           </div>
-        }
+          <div class="summary-tile">
+            <span class="summary-label">Current Month</span>
+            <strong>{{ currentMonthCount }}</strong>
+          </div>
+          <div class="summary-tile">
+            <span class="summary-label">Total Amount</span>
+            <strong>{{ totalAmount | currencyFormat }}</strong>
+          </div>
+        </div>
 
         @if (loading) {
           <div class="section-loading"><div class="spinner" style="width:26px;height:26px"></div></div>
@@ -78,10 +69,10 @@ import { CurrencyFormatPipe, DateFormatPipe } from '../../../shared/pipes/pipes'
                     <td>{{ deduction.createdAt | dateFormat }}</td>
                     <td>
                       <div class="table-actions">
-                        <button *hasPermission="'salary:update'" class="btn btn-ghost btn-sm btn-icon" (click)="startEdit(deduction)">
+                        <button class="btn btn-ghost btn-sm btn-icon" [disabled]="saving" (click)="startEdit(deduction)">
                           <span class="material-icons" style="font-size:14px">edit</span>
                         </button>
-                        <button *hasPermission="'salary:update'" class="btn btn-danger btn-sm btn-icon" (click)="deleteTarget = deduction">
+                        <button class="btn btn-danger btn-sm btn-icon" [disabled]="saving" (click)="deleteTarget = deduction">
                           <span class="material-icons" style="font-size:14px">delete</span>
                         </button>
                       </div>
@@ -94,6 +85,47 @@ import { CurrencyFormatPipe, DateFormatPipe } from '../../../shared/pipes/pipes'
         }
       </div>
     </div>
+
+    @if (formOpen) {
+      <div class="modal-backdrop" (click)="resetForm()">
+        <div class="modal deduction-modal" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <div>
+              <div class="modal-title">{{ editingId ? 'Update Deduction' : 'Create Deduction' }}</div>
+              <div class="text-secondary mt-4" style="font-size:13px">
+                {{ editingId ? 'Edit the selected deduction entry.' : 'Add a new manual deduction for this staff member.' }}
+              </div>
+            </div>
+            <button class="btn btn-ghost btn-icon" [disabled]="saving" (click)="resetForm()">
+              <span class="material-icons">close</span>
+            </button>
+          </div>
+
+          <div class="editor-grid">
+            <div class="form-group">
+              <label>Month</label>
+              <input type="month" class="form-control" [(ngModel)]="draft.month">
+            </div>
+            <div class="form-group">
+              <label>Amount</label>
+              <input type="number" class="form-control" [(ngModel)]="draft.amount" min="0">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Reason</label>
+            <input type="text" class="form-control" [(ngModel)]="draft.reason" placeholder="Enter deduction reason">
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn btn-secondary" [disabled]="saving" (click)="resetForm()">Cancel</button>
+            <button class="btn btn-primary" [disabled]="saving" (click)="saveDeduction()">
+              {{ editingId ? 'Update Deduction' : 'Create Deduction' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    }
 
     <app-confirm-dialog
       [open]="!!deleteTarget"
@@ -113,7 +145,6 @@ import { CurrencyFormatPipe, DateFormatPipe } from '../../../shared/pipes/pipes'
     }
 
     .section-header,
-    .editor-actions,
     .table-actions {
       display: flex;
       align-items: center;
@@ -137,12 +168,29 @@ import { CurrencyFormatPipe, DateFormatPipe } from '../../../shared/pipes/pipes'
       margin-top: 4px;
     }
 
-    .editor-panel {
+    .deduction-summary {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
       margin-bottom: 18px;
-      padding: 18px;
+    }
+
+    .summary-tile {
+      padding: 14px 16px;
       border-radius: 16px;
       border: 1px solid var(--border);
-      background: rgba(255, 255, 255, 0.02);
+      background: linear-gradient(180deg, rgba(255, 106, 26, 0.08), transparent), var(--bg-elevated);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .summary-label {
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
     }
 
     .editor-grid {
@@ -151,10 +199,20 @@ import { CurrencyFormatPipe, DateFormatPipe } from '../../../shared/pipes/pipes'
       gap: 12px;
     }
 
+    .deduction-modal {
+      width: min(100%, 620px);
+      max-width: 620px;
+    }
+
     .section-loading {
       min-height: 180px;
       display: grid;
       place-items: center;
+    }
+
+    .data-table-wrapper {
+      max-height: min(52vh, 520px);
+      overflow: auto;
     }
 
     .compact-empty {
@@ -162,6 +220,7 @@ import { CurrencyFormatPipe, DateFormatPipe } from '../../../shared/pipes/pipes'
     }
 
     @media (max-width: 640px) {
+      .deduction-summary,
       .editor-grid {
         grid-template-columns: 1fr;
       }
@@ -175,6 +234,7 @@ export class StaffDeductionsSectionComponent implements OnInit {
   staffId = '';
   deductions: Deduction[] = [];
   loading = true;
+  saving = false;
   formOpen = false;
   editingId: string | null = null;
   deleteTarget: Deduction | null = null;
@@ -184,6 +244,15 @@ export class StaffDeductionsSectionComponent implements OnInit {
     amount: 0,
     reason: '',
   };
+
+  get totalAmount(): number {
+    return this.deductions.reduce((sum, deduction) => sum + deduction.amount, 0);
+  }
+
+  get currentMonthCount(): number {
+    const month = format(new Date(), 'yyyy-MM');
+    return this.deductions.filter(deduction => deduction.month === month).length;
+  }
 
   ngOnInit(): void {
     this.staffId = this.route.parent?.snapshot.paramMap.get('id') ?? '';
@@ -231,22 +300,33 @@ export class StaffDeductionsSectionComponent implements OnInit {
 
   saveDeduction(): void {
     if (!this.draft.month || !this.draft.reason || this.draft.amount <= 0) return;
+    this.saving = true;
 
     const request$ = this.editingId
       ? this.staffService.updateDeduction(this.staffId, this.editingId, this.draft)
       : this.staffService.addDeduction(this.staffId, this.draft);
 
-    request$.subscribe(() => {
-      this.resetForm();
-      this.loadDeductions();
+    request$.subscribe({
+      next: () => {
+        this.saving = false;
+        this.resetForm();
+        this.loadDeductions();
+      },
+      error: () => {
+        this.saving = false;
+      },
     });
   }
 
   confirmDelete(): void {
     if (!this.deleteTarget) return;
+    this.saving = true;
     this.staffService.deleteDeduction(this.staffId, this.deleteTarget._id).subscribe(() => {
+      this.saving = false;
       this.deleteTarget = null;
       this.loadDeductions();
+    }, () => {
+      this.saving = false;
     });
   }
 

@@ -29,100 +29,114 @@ import { format } from 'date-fns';
       </button>
     </div>
 
-    <!-- Stats Grid -->
-    <div class="stats-grid">
-      @if (loading) {
-        @for (i of [1,2,3,4,5,6]; track i) {
-          <div class="skeleton skeleton-card" style="height:100px"></div>
-        }
-      } @else {
-        <div class="stat-card stat-info" routerLink="/staff">
-          <div class="stat-label">Total Staff</div>
-          <div class="stat-value">{{ stats.totalStaff }}</div>
-          <div class="stat-icon"><span class="material-icons">people</span></div>
+    @if (!hasAdminDashboardAccess()) {
+      <div class="card access-note">
+        <div class="access-note-icon">
+          <span class="material-icons">info</span>
         </div>
-        <div class="stat-card stat-success">
-          <div class="stat-label">Present Today</div>
-          <div class="stat-value">{{ stats.presentToday }}</div>
-          <div class="stat-icon"><span class="material-icons">check_circle</span></div>
+        <div>
+          <div class="fw-bold">Limited staff access</div>
+          <div class="access-note-copy">
+            You are signed in as staff, so admin dashboard data is hidden for this account.
+          </div>
         </div>
-        <div class="stat-card stat-warning">
-          <div class="stat-label">Late Today</div>
-          <div class="stat-value">{{ stats.lateToday }}</div>
-          <div class="stat-icon"><span class="material-icons">schedule</span></div>
-        </div>
-        <div class="stat-card stat-danger">
-          <div class="stat-label">Absent Today</div>
-          <div class="stat-value">{{ stats.absentToday }}</div>
-          <div class="stat-icon"><span class="material-icons">person_off</span></div>
-        </div>
-        <div class="stat-card stat-warning" routerLink="/leaves">
-          <div class="stat-label">Pending Leaves</div>
-          <div class="stat-value">{{ stats.pendingLeaves }}</div>
-          <div class="stat-icon"><span class="material-icons">beach_access</span></div>
-        </div>
-        <div class="stat-card stat-info" routerLink="/salary">
-          <div class="stat-label">Unpaid Salaries</div>
-          <div class="stat-value">{{ stats.unpaidSalaries }}</div>
-          <div class="stat-icon"><span class="material-icons">payments</span></div>
-        </div>
-      }
-    </div>
-
-    <div class="dashboard-bottom">
-      <!-- Recent Audit Logs -->
-      <div class="card">
-        <div class="flex items-center justify-between mb-16">
-          <div class="fw-bold">Recent Activity</div>
-          <a routerLink="/audit-logs" class="btn btn-ghost" style="font-size:12px;padding:4px 10px">View all</a>
-        </div>
+      </div>
+    } @else {
+      <!-- Stats Grid -->
+      <div class="stats-grid">
         @if (loading) {
-          @for (i of [1,2,3,4,5]; track i) {
-            <div class="skeleton skeleton-text mb-8"></div>
+          @for (i of [1,2,3,4,5,6]; track i) {
+            <div class="skeleton skeleton-card" style="height:100px"></div>
           }
-        } @else if (auditLogs.length === 0) {
-          <div style="color:var(--text-muted);font-size:13px;text-align:center;padding:20px">No recent activity</div>
         } @else {
-          <div class="audit-list">
-            @for (log of auditLogs.slice(0, 5); track log._id) {
-              <div class="audit-row">
-                <div class="audit-info">
-                  <span class="audit-action">{{ log.action }}</span>
-                  <span class="audit-resource">{{ log.resource }}</span>
-                </div>
-                <div class="audit-meta">
-                  <span class="badge" [class.badge-success]="log.status === 'success'" [class.badge-danger]="log.status === 'fail'">{{ log.status }}</span>
-                  <span class="text-muted" style="font-size:11px">{{ log.createdAt | timeAgo }}</span>
-                </div>
-              </div>
-            }
+          <div class="stat-card stat-info" routerLink="/staff">
+            <div class="stat-label">Total Staff</div>
+            <div class="stat-value">{{ stats.totalStaff }}</div>
+            <div class="stat-icon"><span class="material-icons">people</span></div>
+          </div>
+          <div class="stat-card stat-success">
+            <div class="stat-label">Present Today</div>
+            <div class="stat-value">{{ stats.presentToday }}</div>
+            <div class="stat-icon"><span class="material-icons">check_circle</span></div>
+          </div>
+          <div class="stat-card stat-warning">
+            <div class="stat-label">Late Today</div>
+            <div class="stat-value">{{ stats.lateToday }}</div>
+            <div class="stat-icon"><span class="material-icons">schedule</span></div>
+          </div>
+          <div class="stat-card stat-danger">
+            <div class="stat-label">Absent Today</div>
+            <div class="stat-value">{{ stats.absentToday }}</div>
+            <div class="stat-icon"><span class="material-icons">person_off</span></div>
+          </div>
+          <div class="stat-card stat-warning" routerLink="/leaves">
+            <div class="stat-label">Pending Leaves</div>
+            <div class="stat-value">{{ stats.pendingLeaves }}</div>
+            <div class="stat-icon"><span class="material-icons">beach_access</span></div>
+          </div>
+          <div class="stat-card stat-info" routerLink="/salary">
+            <div class="stat-label">Unpaid Salaries</div>
+            <div class="stat-value">{{ stats.unpaidSalaries }}</div>
+            <div class="stat-icon"><span class="material-icons">payments</span></div>
           </div>
         }
       </div>
 
-      <!-- Department Breakdown -->
-      <div class="card">
-        <div class="fw-bold mb-16">Department Breakdown</div>
-        @if (loading) {
-          <div class="skeleton skeleton-card"></div>
-        } @else {
-          <div class="dept-list">
-            @for (dept of departments; track dept._id) {
-              <div class="dept-row">
-                <div class="dept-name">{{ dept.name }}</div>
-                <div class="dept-bar-wrap">
-                  <div class="dept-bar" [style.width.%]="getDeptPercent(dept.staffCount || 0)"></div>
-                </div>
-                <div class="dept-count">{{ dept.staffCount || 0 }}</div>
-              </div>
-            }
-            @if (departments.length === 0) {
-              <div style="color:var(--text-muted);font-size:13px;text-align:center;padding:20px">No departments found</div>
-            }
+      <div class="dashboard-bottom">
+        <!-- Recent Audit Logs -->
+        <div class="card">
+          <div class="flex items-center justify-between mb-16">
+            <div class="fw-bold">Recent Activity</div>
+            <a routerLink="/audit-logs" class="btn btn-ghost" style="font-size:12px;padding:4px 10px">View all</a>
           </div>
-        }
+          @if (loading) {
+            @for (i of [1,2,3,4,5]; track i) {
+              <div class="skeleton skeleton-text mb-8"></div>
+            }
+          } @else if (auditLogs.length === 0) {
+            <div style="color:var(--text-muted);font-size:13px;text-align:center;padding:20px">No recent activity</div>
+          } @else {
+            <div class="audit-list">
+              @for (log of auditLogs.slice(0, 5); track log._id) {
+                <div class="audit-row">
+                  <div class="audit-info">
+                    <span class="audit-action">{{ log.action }}</span>
+                    <span class="audit-resource">{{ log.resource }}</span>
+                  </div>
+                  <div class="audit-meta">
+                    <span class="badge" [class.badge-success]="log.status === 'success'" [class.badge-danger]="log.status === 'fail'">{{ log.status }}</span>
+                    <span class="text-muted" style="font-size:11px">{{ log.createdAt | timeAgo }}</span>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+
+        <!-- Department Breakdown -->
+        <div class="card">
+          <div class="fw-bold mb-16">Department Breakdown</div>
+          @if (loading) {
+            <div class="skeleton skeleton-card"></div>
+          } @else {
+            <div class="dept-list">
+              @for (dept of departments; track dept._id) {
+                <div class="dept-row">
+                  <div class="dept-name">{{ dept.name }}</div>
+                  <div class="dept-bar-wrap">
+                    <div class="dept-bar" [style.width.%]="getDeptPercent(dept.staffCount || 0)"></div>
+                  </div>
+                  <div class="dept-count">{{ dept.staffCount || 0 }}</div>
+                </div>
+              }
+              @if (departments.length === 0) {
+                <div style="color:var(--text-muted);font-size:13px;text-align:center;padding:20px">No departments found</div>
+              }
+            </div>
+          }
+          </div>
       </div>
-    </div>
+    }
   `,
   styles: [`
     .stats-grid {
@@ -131,7 +145,49 @@ import { format } from 'date-fns';
       gap: 16px;
       margin-bottom: 24px;
     }
-    .stat-card { cursor: pointer; }
+    .stat-card {
+      cursor: pointer;
+      min-height: 120px;
+      padding-right: 68px;
+    }
+
+    .stat-card .stat-label,
+    .stat-card .stat-value {
+      position: relative;
+      z-index: 1;
+    }
+
+    .stat-card .stat-icon {
+      z-index: 0;
+    }
+
+    .access-note {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      margin-bottom: 24px;
+      background:
+        linear-gradient(145deg, rgba(56, 189, 248, 0.12), transparent 38%),
+        var(--bg-card);
+    }
+
+    .access-note-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--info-dim);
+      color: var(--info);
+      flex-shrink: 0;
+    }
+
+    .access-note-copy {
+      color: var(--text-secondary);
+      font-size: 14px;
+      margin-top: 4px;
+    }
 
     .dashboard-bottom {
       display: grid;
@@ -167,6 +223,12 @@ import { format } from 'date-fns';
 export class DashboardComponent implements OnInit, OnDestroy {
   readonly auth = inject(AuthService);
   readonly firstName = computed(() => this.auth.currentUser()?.name.split(' ')[0] ?? 'Team');
+  readonly hasAdminDashboardAccess = computed(() =>
+    this.auth.hasPermission('staff:read') ||
+    this.auth.hasPermission('department:read') ||
+    this.auth.hasPermission('audit:read') ||
+    this.auth.hasPermission('*')
+  );
   private readonly staffService = inject(StaffService);
   private readonly leaveService = inject(LeaveService);
   private readonly reportService = inject(ReportService);
@@ -202,6 +264,21 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   loadData(): void {
+    if (!this.hasAdminDashboardAccess()) {
+      this.loading = false;
+      this.auditLogs = [];
+      this.departments = [];
+      this.stats = {
+        totalStaff: 0,
+        presentToday: 0,
+        lateToday: 0,
+        absentToday: 0,
+        pendingLeaves: 0,
+        unpaidSalaries: 0,
+      };
+      return;
+    }
+
     this.loading = true;
     this.auditLogs = [];
     this.departments = [];

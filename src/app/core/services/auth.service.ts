@@ -23,6 +23,7 @@ export class AuthService {
 
   readonly currentUser = signal<User | null>(this.getStoredUser());
   readonly isLoading = signal(false);
+  private sessionExpiredNotified = false;
 
   isAuthenticated(): boolean {
     return this.tokenService.hasToken();
@@ -58,6 +59,7 @@ export class AuthService {
   }
 
   login(credentials: { email: string; password: string }): Observable<void> {
+    this.sessionExpiredNotified = false;
     return this.http
       .post<AuthApiResponse>(`${this.api}/auth/login`, credentials, {
         withCredentials: true,
@@ -148,6 +150,15 @@ export class AuthService {
   }
 
   handleSessionExpired(): void {
+    if (!this.sessionExpiredNotified) {
+      this.sessionExpiredNotified = true;
+      window.dispatchEvent(new CustomEvent('app:toast', {
+        detail: {
+          type: 'error',
+          message: 'Session expired. Please log in again.'
+        }
+      }));
+    }
     this.clearSession("/auth/login");
   }
 

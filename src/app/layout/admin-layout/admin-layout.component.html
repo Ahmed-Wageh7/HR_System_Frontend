@@ -45,16 +45,37 @@
 
       <nav class="sidebar-nav">
         @for (item of navItems; track item.route) {
-          <a
-            class="nav-item"
-            [routerLink]="item.route"
-            routerLinkActive="active"
-            [title]="item.label"
-            (click)="handleNavClick()"
-          >
-            <app-icon [name]="item.icon" extraClass="nav-icon" />
-            <span class="nav-label">{{ item.label }}</span>
-          </a>
+          <div class="nav-group">
+            <a
+              class="nav-item"
+              [routerLink]="item.route"
+              routerLinkActive="active"
+              [routerLinkActiveOptions]="{ exact: item.route !== '/staff' }"
+              [title]="item.label"
+              (click)="handleNavItemClick($event)"
+            >
+              <app-icon [name]="item.icon" extraClass="nav-icon" />
+              <span class="nav-label">{{ item.label }}</span>
+            </a>
+
+            @if (item.route === '/staff' && showStaffSubnav) {
+              <div class="nested-nav">
+                @for (subItem of staffSubnav; track subItem.route) {
+                  <a
+                    class="nested-nav-item"
+                    [class.disabled]="!subItem.route"
+                    [routerLink]="subItem.route || '/staff'"
+                    routerLinkActive="active"
+                    [routerLinkActiveOptions]="{ exact: !!subItem.route }"
+                    (click)="handleNavClick()"
+                  >
+                    <span class="nested-nav-dot"></span>
+                    <span>{{ subItem.label }}</span>
+                  </a>
+                }
+              </div>
+            }
+          </div>
         }
       </nav>
 
@@ -70,7 +91,7 @@
                 loading="lazy"
               />
             } @else {
-              {{ currentUserName() | initials }}
+              <span class="material-icons avatar-fallback-icon">account_circle</span>
             }
           </div>
           <div class="user-details">

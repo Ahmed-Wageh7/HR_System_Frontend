@@ -19,11 +19,22 @@ import { DateFormatPipe } from '../../../shared/pipes/pipes';
             <div class="section-title">Staff Documents</div>
             <div class="section-subtitle">Upload and delete official staff files.</div>
           </div>
-          <button *hasPermission="'staff:update'" class="btn btn-secondary" (click)="documentInput.click()">
+          <button *hasPermission="'staff:update'" class="btn btn-secondary" [disabled]="uploading || deleting" (click)="documentInput.click()">
             <span class="material-icons" style="font-size:16px">upload_file</span>
-            Upload Document
+            {{ uploading ? 'Uploading...' : 'Upload Document' }}
           </button>
           <input #documentInput type="file" style="display:none" (change)="uploadDocument($event)">
+        </div>
+
+        <div class="document-summary">
+          <div class="summary-tile">
+            <span class="summary-label">Files</span>
+            <strong>{{ staff?.documents?.length ?? 0 }}</strong>
+          </div>
+          <div class="summary-tile">
+            <span class="summary-label">Latest Upload</span>
+            <strong>{{ latestUploadLabel }}</strong>
+          </div>
         </div>
 
         @if (loading) {
@@ -47,7 +58,7 @@ import { DateFormatPipe } from '../../../shared/pipes/pipes';
 
                 <div class="document-actions">
                   <a class="btn btn-ghost btn-sm" [href]="document.url" target="_blank" rel="noopener">Open</a>
-                  <button *hasPermission="'staff:update'" class="btn btn-danger btn-sm btn-icon" (click)="deleteTarget = document">
+                  <button *hasPermission="'staff:update'" class="btn btn-danger btn-sm btn-icon" [disabled]="deleting" (click)="deleteTarget = document">
                     <span class="material-icons" style="font-size:14px">delete</span>
                   </button>
                 </div>
@@ -107,6 +118,31 @@ import { DateFormatPipe } from '../../../shared/pipes/pipes';
       gap: 12px;
     }
 
+    .document-summary {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .summary-tile {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 14px 16px;
+      background: linear-gradient(180deg, rgba(31, 143, 255, 0.08), transparent), var(--bg-elevated);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .summary-label {
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
     .document-row {
       border: 1px solid var(--border);
       border-radius: 16px;
@@ -138,6 +174,12 @@ import { DateFormatPipe } from '../../../shared/pipes/pipes';
     .compact-empty {
       padding: 28px 18px;
     }
+
+    @media (max-width: 640px) {
+      .document-summary {
+        grid-template-columns: 1fr;
+      }
+    }
   `],
 })
 export class StaffDocumentsSectionComponent implements OnInit {
@@ -147,7 +189,15 @@ export class StaffDocumentsSectionComponent implements OnInit {
   staffId = '';
   staff: Staff | null = null;
   loading = true;
+  uploading = false;
+  deleting = false;
   deleteTarget: StaffDocument | null = null;
+
+  get latestUploadLabel(): string {
+    const documents = this.staff?.documents ?? [];
+    if (documents.length === 0) return 'No uploads yet';
+    return documents[0].uploadedAt ? new Date(documents[0].uploadedAt).toLocaleDateString() : 'Available';
+  }
 
   ngOnInit(): void {
     this.staffId = this.route.parent?.snapshot.paramMap.get('id') ?? '';
@@ -176,18 +226,27 @@ export class StaffDocumentsSectionComponent implements OnInit {
   uploadDocument(event: Event): void {
     const file = (event.target as HTMLInputElement).files?.[0];
     if (!file || !this.staffId) return;
+    this.uploading = true;
 
     this.staffService.uploadDocument(this.staffId, file).subscribe(() => {
+      this.uploading = false;
       this.loadStaff();
+      (event.target as HTMLInputElement).value = '';
+    }, () => {
+      this.uploading = false;
       (event.target as HTMLInputElement).value = '';
     });
   }
 
   deleteDocument(): void {
     if (!this.deleteTarget) return;
+    this.deleting = true;
     this.staffService.deleteDocument(this.staffId, this.deleteTarget._id).subscribe(() => {
+      this.deleting = false;
       this.deleteTarget = null;
       this.loadStaff();
+    }, () => {
+      this.deleting = false;
     });
   }
 

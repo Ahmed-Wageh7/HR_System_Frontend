@@ -1,11 +1,12 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
-import { ActivatedRoute, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink, RouterOutlet } from '@angular/router';
 import { Staff } from '../../../core/models';
 import { StaffService } from '../../../core/services/staff.service';
 import { HasPermissionDirective } from '../../../shared/directives/has-permission.directive';
 import { CurrencyFormatPipe, DateFormatPipe, InitialsPipe } from '../../../shared/pipes/pipes';
 import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialog.component';
+import { StaffFormComponent } from '../form/staff-form.component';
 
 @Component({
   selector: 'app-staff-workspace',
@@ -13,13 +14,13 @@ import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialo
   imports: [
     CommonModule,
     RouterLink,
-    RouterLinkActive,
     RouterOutlet,
     HasPermissionDirective,
     InitialsPipe,
     DateFormatPipe,
     CurrencyFormatPipe,
     ConfirmDialogComponent,
+    StaffFormComponent,
   ],
   template: `
     @if (loading) {
@@ -43,7 +44,7 @@ import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialo
             @if (staff.user.avatar) {
               <img [src]="staff.user.avatar" alt="" class="staff-avatar-image">
             } @else {
-              {{ staff.user.name | initials }}
+              <span class="material-icons avatar-fallback-icon">account_circle</span>
             }
           </div>
 
@@ -52,10 +53,27 @@ import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialo
               <span class="badge badge-info">{{ staff.employeeCode || 'Staff Profile' }}</span>
               @if (staff.deletedAt || staff.isDeleted) {
                 <span class="badge badge-danger">Deleted</span>
-              } @else if (staff.isActive) {
-                <span class="badge badge-success">Active</span>
               } @else {
-                <span class="badge badge-muted">Inactive</span>
+                <div class="status-select">
+                  <button class="btn btn-ghost btn-sm status-trigger" type="button" (click)="statusMenuOpen = !statusMenuOpen">
+                    <span class="badge" [class.badge-success]="staff.isActive" [class.badge-muted]="!staff.isActive">
+                      {{ staff.isActive ? 'Active' : 'Inactive' }}
+                    </span>
+                    <span class="material-icons status-caret">keyboard_arrow_down</span>
+                  </button>
+                  @if (statusMenuOpen) {
+                    <div class="status-menu">
+                      <button class="status-menu-item" [class.active]="staff.isActive" (click)="updateStaffStatus(true)">
+                        <span>Active</span>
+                        @if (staff.isActive) { <span class="material-icons">check</span> }
+                      </button>
+                      <button class="status-menu-item" [class.active]="!staff.isActive" (click)="updateStaffStatus(false)">
+                        <span>Inactive</span>
+                        @if (!staff.isActive) { <span class="material-icons">check</span> }
+                      </button>
+                    </div>
+                  }
+                </div>
               }
             </div>
 
@@ -101,21 +119,34 @@ import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialo
         </div>
       </div>
 
-      <div class="staff-section-nav">
-        @for (link of links; track link.path) {
-          <a
-            class="section-pill"
-            [routerLink]="link.path"
-            routerLinkActive="active"
-            [routerLinkActiveOptions]="{ exact: true }"
-          >
-            <span class="material-icons" style="font-size:18px">{{ link.icon }}</span>
-            <span>{{ link.label }}</span>
-          </a>
-        }
-      </div>
+      <section class="workspace-body">
+        <router-outlet />
+      </section>
+    }
 
-      <router-outlet />
+    @if (editModalOpen && staff) {
+      <div class="modal-backdrop staff-edit-backdrop" (click)="closeEditModal()">
+        <div class="modal staff-edit-modal" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <div>
+              <div class="modal-title">Edit Staff</div>
+              <div class="text-secondary mt-4" style="font-size:13px">
+                Update employment details without leaving this workspace.
+              </div>
+            </div>
+            <button class="btn btn-ghost btn-icon" (click)="closeEditModal()">
+              <span class="material-icons">close</span>
+            </button>
+          </div>
+
+          <app-staff-form
+            [embedded]="true"
+            [staffId]="staff._id"
+            (saved)="handleUpdated($event)"
+            (cancelled)="closeEditModal()"
+          />
+        </div>
+      </div>
     }
 
     <app-confirm-dialog
@@ -210,38 +241,23 @@ import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialo
       font-weight: 700;
     }
 
-    .staff-section-nav {
-      display: flex;
-      gap: 10px;
-      overflow-x: auto;
-      padding: 14px 0 4px;
-      margin-bottom: 16px;
+    .workspace-body {
+      min-height: 0;
+      max-height: calc(100vh - 280px);
+      overflow: auto;
+      padding-right: 4px;
     }
 
-    .section-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 11px 16px;
-      border-radius: 999px;
-      border: 1px solid var(--border);
-      background: var(--bg-card);
-      color: var(--text-secondary);
-      white-space: nowrap;
-      transition: var(--transition);
-      box-shadow: var(--shadow-sm);
+    .staff-edit-backdrop {
+      align-items: flex-start;
+      overflow-y: auto;
     }
 
-    .section-pill:hover {
-      color: var(--text-primary);
-      border-color: var(--border-strong);
-      transform: translateY(-1px);
-    }
-
-    .section-pill.active {
-      color: var(--accent-contrast);
-      background: linear-gradient(135deg, var(--accent), var(--accent-hover));
-      border-color: transparent;
+    .staff-edit-modal {
+      width: min(100%, 860px);
+      max-width: 860px;
+      max-height: 78vh;
+      margin: 24px 0;
     }
 
     @media (max-width: 900px) {
@@ -275,6 +291,12 @@ import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialo
         flex: 1 1 100%;
         justify-content: center;
       }
+
+      .workspace-body {
+        max-height: none;
+        overflow: visible;
+        padding-right: 0;
+      }
     }
   `],
 })
@@ -286,14 +308,8 @@ export class StaffWorkspaceComponent implements OnInit {
   loading = true;
   staff: Staff | null = null;
   confirmDeleteOpen = false;
-
-  readonly links = [
-    { path: 'profile', label: 'Staff', icon: 'badge' },
-    { path: 'attendance', label: 'Attendance', icon: 'fact_check' },
-    { path: 'salary', label: 'Salary', icon: 'payments' },
-    { path: 'deductions', label: 'Deductions', icon: 'receipt_long' },
-    { path: 'documents', label: 'Documents', icon: 'folder_open' },
-  ];
+  editModalOpen = false;
+  statusMenuOpen = false;
 
   ngOnInit(): void {
     this.loadStaff();
@@ -310,6 +326,9 @@ export class StaffWorkspaceComponent implements OnInit {
     this.staffService.getById(id).subscribe({
       next: (response) => {
         this.staff = response.data;
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('lastStaffWorkspaceId', response.data._id);
+        }
         this.loading = false;
       },
       error: () => {
@@ -321,7 +340,34 @@ export class StaffWorkspaceComponent implements OnInit {
 
   editStaff(): void {
     if (!this.staff) return;
-    this.router.navigate(['/staff', this.staff._id, 'edit']);
+    this.editModalOpen = true;
+  }
+
+  closeEditModal(): void {
+    this.editModalOpen = false;
+  }
+
+  handleUpdated(staff: Staff): void {
+    this.staff = staff;
+    this.editModalOpen = false;
+    this.loadStaff();
+  }
+
+  updateStaffStatus(isActive: boolean): void {
+    if (!this.staff || this.staff.isActive === isActive) {
+      this.statusMenuOpen = false;
+      return;
+    }
+
+    this.staffService.update(this.staff._id, { isActive }).subscribe({
+      next: (response) => {
+        this.staff = response.data;
+        this.statusMenuOpen = false;
+      },
+      error: () => {
+        this.statusMenuOpen = false;
+      }
+    });
   }
 
   deleteStaff(): void {

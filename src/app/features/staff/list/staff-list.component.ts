@@ -3,11 +3,13 @@ import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { StaffService } from '../../../core/services/staff.service';
-import { Staff } from '../../../core/models';
+import { Department, Staff } from '../../../core/models';
 import { InitialsPipe, DateFormatPipe, CurrencyFormatPipe } from '../../../shared/pipes/pipes';
 import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialog.component';
 import { HasPermissionDirective } from '../../../shared/directives/has-permission.directive';
 import { StaffFormComponent } from '../form/staff-form.component';
+import { DepartmentService } from '../../../core/services/department.service';
+import { forkJoin } from 'rxjs';
 
 @Component({
   selector: 'app-staff-list',
@@ -27,7 +29,65 @@ import { StaffFormComponent } from '../form/staff-form.component';
       </div>
     </div>
 
-    <!-- Table -->
+    <div class="staff-overview-grid">
+      <div class="stat-card stat-info">
+        <span class="stat-label">Total Staff</span>
+        <span class="stat-value">{{ totalStaff }}</span>
+        <span class="material-icons stat-icon">groups</span>
+      </div>
+      <div class="stat-card stat-success">
+        <span class="stat-label">Active</span>
+        <span class="stat-value">{{ activeCount }}</span>
+        <span class="material-icons stat-icon">verified_user</span>
+      </div>
+      <div class="stat-card stat-warning">
+        <span class="stat-label">Inactive</span>
+        <span class="stat-value">{{ inactiveCount }}</span>
+        <span class="material-icons stat-icon">hourglass_bottom</span>
+      </div>
+      <div class="stat-card stat-danger">
+        <span class="stat-label">Deleted</span>
+        <span class="stat-value">{{ deletedCount }}</span>
+        <span class="material-icons stat-icon">person_off</span>
+      </div>
+    </div>
+
+    <div class="filter-panel staff-filter-panel">
+      <div class="search-input-wrapper">
+        <span class="material-icons search-icon">search</span>
+        <input
+          type="text"
+          [ngModel]="search"
+          (ngModelChange)="onSearchChange($event)"
+          placeholder="Search by name or email"
+        >
+      </div>
+
+      <div class="form-group filter-field">
+        <label>Department</label>
+        <select class="form-control" [(ngModel)]="departmentFilter" (ngModelChange)="applyFilters()">
+          <option value="">All Departments</option>
+          @for (department of departments; track department._id) {
+            <option [value]="department._id">{{ department.name }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="form-group filter-field">
+        <label>Status</label>
+        <select class="form-control" [(ngModel)]="statusFilter" (ngModelChange)="applyFilters()">
+          <option value="">All Statuses</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+          <option value="deleted">Deleted</option>
+        </select>
+      </div>
+
+      <div class="filter-actions">
+        <button class="btn btn-secondary" type="button" (click)="resetFilters()">Reset</button>
+      </div>
+    </div>
+
     <div class="card" style="padding:0">
       @if (loading) {
         <div style="padding:20px">
@@ -50,6 +110,97 @@ import { StaffFormComponent } from '../form/staff-form.component';
           <div class="empty-desc">Try adjusting your filters or add a new staff member</div>
         </div>
       } @else {
+        <div class="staff-mobile-list">
+          @for (s of staffList; track s._id) {
+            <article class="staff-mobile-card">
+              <div class="staff-mobile-top">
+                <div class="flex items-center gap-12" style="min-width:0">
+                  <div class="avatar avatar-lg">
+                    @if (s.user.avatar) {
+                      <img [src]="s.user.avatar" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover">
+                    } @else {
+                      <span class="material-icons avatar-fallback-icon">account_circle</span>
+                    }
+                  </div>
+                  <div class="staff-mobile-copy">
+                    <a class="staff-name-cell" [routerLink]="['/staff', s._id]">
+                      <div class="fw-semibold">{{ s.user.name }}</div>
+                    </a>
+                    <div class="text-muted staff-mobile-email">{{ s.user.email }}</div>
+                    <div class="text-muted">{{ s.employeeCode || 'No code assigned' }}</div>
+                  </div>
+                </div>
+
+                @if (s.deletedAt) {
+                  <span class="badge badge-danger">Deleted</span>
+                } @else {
+                  <div class="status-select">
+                    <button class="btn btn-ghost btn-sm status-trigger" type="button" (click)="toggleStatusMenu(s._id)">
+                      <span class="badge" [class.badge-success]="s.isActive" [class.badge-muted]="!s.isActive">
+                        {{ s.isActive ? 'Active' : 'Inactive' }}
+                      </span>
+                      <span class="material-icons status-caret">keyboard_arrow_down</span>
+                    </button>
+                    @if (statusMenuOpenId === s._id) {
+                      <div class="status-menu">
+                        <button class="status-menu-item" [class.active]="s.isActive" (click)="updateStaffStatus(s, true)">
+                          <span>Active</span>
+                          @if (s.isActive) { <span class="material-icons">check</span> }
+                        </button>
+                        <button class="status-menu-item" [class.active]="!s.isActive" (click)="updateStaffStatus(s, false)">
+                          <span>Inactive</span>
+                          @if (!s.isActive) { <span class="material-icons">check</span> }
+                        </button>
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+
+              <div class="staff-mobile-meta">
+                <div class="mobile-meta-item">
+                  <span class="mobile-meta-label">Department</span>
+                  <strong>{{ s.department?.name || '—' }}</strong>
+                </div>
+                <div class="mobile-meta-item">
+                  <span class="mobile-meta-label">Position</span>
+                  <strong>{{ s.position || '—' }}</strong>
+                </div>
+                <div class="mobile-meta-item">
+                  <span class="mobile-meta-label">Daily Salary</span>
+                  <strong>{{ s.dailySalary | currencyFormat }}</strong>
+                </div>
+                <div class="mobile-meta-item">
+                  <span class="mobile-meta-label">Join Date</span>
+                  <strong>{{ s.joinDate | dateFormat }}</strong>
+                </div>
+              </div>
+
+              <div class="staff-mobile-actions">
+                <a class="btn btn-secondary btn-sm" [routerLink]="['/staff', s._id]">
+                  <span class="material-icons" style="font-size:16px">visibility</span>
+                  Open
+                </a>
+                <button *hasPermission="'staff:update'" class="btn btn-ghost btn-sm" (click)="openEditModal(s._id)">
+                  <span class="material-icons" style="font-size:16px">edit</span>
+                  Edit
+                </button>
+                @if (s.deletedAt) {
+                  <button *hasPermission="'staff:update'" class="btn btn-success btn-sm" (click)="restore(s._id)">
+                    <span class="material-icons" style="font-size:16px">restore</span>
+                    Restore
+                  </button>
+                } @else {
+                  <button *hasPermission="'staff:delete'" class="btn btn-danger btn-sm" (click)="openDelete(s)">
+                    <span class="material-icons" style="font-size:16px">delete</span>
+                    Delete
+                  </button>
+                }
+              </div>
+            </article>
+          }
+        </div>
+
         <div class="data-table-wrapper" style="border:none">
           <table class="data-table">
             <thead>
@@ -78,7 +229,7 @@ import { StaffFormComponent } from '../form/staff-form.component';
                         @if (s.user.avatar) {
                           <img [src]="s.user.avatar" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover">
                         } @else {
-                          {{ s.user.name | initials }}
+                          <span class="material-icons avatar-fallback-icon">account_circle</span>
                         }
                       </div>
                       <a class="staff-name-cell" [routerLink]="['/staff', s._id]">
@@ -94,10 +245,27 @@ import { StaffFormComponent } from '../form/staff-form.component';
                   <td>
                     @if (s.deletedAt) {
                       <span class="badge badge-danger">Deleted</span>
-                    } @else if (s.isActive) {
-                      <span class="badge badge-success">Active</span>
                     } @else {
-                      <span class="badge badge-muted">Inactive</span>
+                      <div class="status-select">
+                        <button class="btn btn-ghost btn-sm status-trigger" type="button" (click)="toggleStatusMenu(s._id)">
+                          <span class="badge" [class.badge-success]="s.isActive" [class.badge-muted]="!s.isActive">
+                            {{ s.isActive ? 'Active' : 'Inactive' }}
+                          </span>
+                          <span class="material-icons status-caret">keyboard_arrow_down</span>
+                        </button>
+                        @if (statusMenuOpenId === s._id) {
+                          <div class="status-menu">
+                            <button class="status-menu-item" [class.active]="s.isActive" (click)="updateStaffStatus(s, true)">
+                              <span>Active</span>
+                              @if (s.isActive) { <span class="material-icons">check</span> }
+                            </button>
+                            <button class="status-menu-item" [class.active]="!s.isActive" (click)="updateStaffStatus(s, false)">
+                              <span>Inactive</span>
+                              @if (!s.isActive) { <span class="material-icons">check</span> }
+                            </button>
+                          </div>
+                        }
+                      </div>
                     }
                   </td>
                   <td>
@@ -205,7 +373,7 @@ import { StaffFormComponent } from '../form/staff-form.component';
     .staff-modal {
       width: min(100%, 860px);
       max-width: 860px;
-      max-height: 86vh;
+      max-height: 78vh;
       margin: 24px 0;
     }
 
@@ -218,24 +386,165 @@ import { StaffFormComponent } from '../form/staff-form.component';
     .staff-name-cell .fw-semibold {
       cursor: pointer;
     }
+
+    .data-table-wrapper {
+      max-height: min(68vh, 760px);
+      overflow: auto;
+    }
+
+    .staff-overview-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .staff-filter-panel {
+      margin-bottom: 16px;
+      grid-template-columns: minmax(0, 1.6fr) repeat(2, minmax(180px, 1fr)) auto;
+    }
+
+    .filter-field {
+      margin-bottom: 0;
+    }
+
+    .filter-actions {
+      display: flex;
+      align-items: end;
+      min-height: 100%;
+    }
+
+    .staff-mobile-list {
+      display: none;
+      padding: 16px;
+      gap: 12px;
+      flex-direction: column;
+      max-height: min(62vh, 720px);
+      overflow: auto;
+    }
+
+    .staff-mobile-card {
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 16px;
+      background:
+        linear-gradient(145deg, rgba(31, 143, 255, 0.08), transparent 42%),
+        var(--bg-elevated);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .staff-mobile-top,
+    .staff-mobile-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .staff-mobile-copy {
+      min-width: 0;
+    }
+
+    .staff-mobile-email {
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .staff-mobile-meta {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .mobile-meta-item {
+      padding: 12px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .mobile-meta-item strong {
+      overflow-wrap: anywhere;
+    }
+
+    .mobile-meta-label {
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    @media (max-width: 1100px) {
+      .staff-overview-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .staff-filter-panel {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 860px) {
+      .staff-mobile-list {
+        display: flex;
+      }
+
+      .data-table-wrapper {
+        display: none;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .staff-overview-grid,
+      .staff-filter-panel,
+      .staff-mobile-meta {
+        grid-template-columns: 1fr;
+      }
+
+      .bulk-bar {
+        width: calc(100% - 24px);
+        left: 12px;
+        right: 12px;
+        transform: none;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+    }
   `]
 })
 export class StaffListComponent implements OnInit {
   private readonly staffService = inject(StaffService);
+  private readonly departmentService = inject(DepartmentService);
   private readonly router = inject(Router);
 
   loading = true;
   staffList: Staff[] = [];
+  departments: Department[] = [];
   totalStaff = 0;
   page = 1;
   limit = 10;
   sort = '-createdAt';
+  search = '';
+  departmentFilter = '';
+  statusFilter = '';
   selected = new Set<string>();
   confirmOpen = false;
   deleteTarget: Staff | null = null;
+  statusMenuOpenId: string | null = null;
   modalOpen = false;
   modalMode: 'create' | 'edit' | null = null;
   activeStaffId: string | null = null;
+  activeCount = 0;
+  inactiveCount = 0;
+  deletedCount = 0;
 
   get totalPages(): number { return Math.ceil(this.totalStaff / this.limit); }
   get pageNumbers(): number[] {
@@ -255,21 +564,59 @@ export class StaffListComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.loadStaff();
+    this.loadInitialData();
+  }
+
+  loadInitialData(): void {
+    forkJoin({
+      departments: this.departmentService.getAll(),
+      staff: this.staffService.getAll(this.buildQuery()),
+    }).subscribe({
+      next: ({ departments, staff }) => {
+        this.departments = departments.data ?? [];
+        this.applyStaffResponse(staff);
+      },
+      error: () => {
+        this.loading = false;
+      },
+    });
   }
 
   loadStaff(): void {
     this.loading = true;
-    const query: Record<string, unknown> = { page: this.page, limit: this.limit, sort: this.sort };
+    const query = this.buildQuery();
 
-    this.staffService.getAll(query as Record<string, string | number | boolean>).subscribe({
-      next: (res) => {
-        this.staffList = res.data;
-        this.totalStaff = res.pagination?.total ?? res.pagination?.totalDocuments ?? res.data.length;
-        this.loading = false;
-      },
+    this.staffService.getAll(query).subscribe({
+      next: (res) => this.applyStaffResponse(res),
       error: () => { this.loading = false; }
     });
+  }
+
+  private buildQuery(): Record<string, string | number | boolean> {
+    const query: Record<string, string | number | boolean> = {
+      page: this.page,
+      limit: this.limit,
+      sort: this.sort,
+    };
+
+    if (this.search.trim()) query['search'] = this.search.trim();
+    if (this.departmentFilter) query['department'] = this.departmentFilter;
+    if (this.statusFilter === 'active') query['isActive'] = true;
+    if (this.statusFilter === 'inactive') query['isActive'] = false;
+    if (this.statusFilter === 'deleted') query['sort'] = this.sort;
+
+    return query;
+  }
+
+  private applyStaffResponse(res: { data: Staff[]; pagination?: { total?: number; totalDocuments?: number; totalResults?: number } }): void {
+    this.staffList = Array.isArray(res.data)
+      ? (this.statusFilter === 'deleted' ? res.data.filter(staff => !!staff.deletedAt || !!staff.isDeleted) : res.data)
+      : [];
+    this.totalStaff = res.pagination?.total ?? res.pagination?.totalDocuments ?? res.pagination?.totalResults ?? this.staffList.length;
+    this.activeCount = this.staffList.filter(staff => staff.isActive && !staff.deletedAt && !staff.isDeleted).length;
+    this.inactiveCount = this.staffList.filter(staff => !staff.isActive && !staff.deletedAt && !staff.isDeleted).length;
+    this.deletedCount = this.staffList.filter(staff => !!staff.deletedAt || !!staff.isDeleted).length;
+    this.loading = false;
   }
 
   setSort(field: string): void {
@@ -287,6 +634,45 @@ export class StaffListComponent implements OnInit {
     if (p < 1 || p > this.totalPages) return;
     this.page = p;
     this.loadStaff();
+  }
+
+  onSearchChange(value: string): void {
+    this.search = value;
+    this.applyFilters();
+  }
+
+  applyFilters(): void {
+    this.page = 1;
+    this.loadStaff();
+  }
+
+  resetFilters(): void {
+    this.search = '';
+    this.departmentFilter = '';
+    this.statusFilter = '';
+    this.page = 1;
+    this.loadStaff();
+  }
+
+  toggleStatusMenu(id: string): void {
+    this.statusMenuOpenId = this.statusMenuOpenId === id ? null : id;
+  }
+
+  updateStaffStatus(staff: Staff, isActive: boolean): void {
+    if (staff.isActive === isActive) {
+      this.statusMenuOpenId = null;
+      return;
+    }
+
+    this.staffService.update(staff._id, { isActive }).subscribe({
+      next: (res) => {
+        this.staffList = this.staffList.map(item => item._id === staff._id ? res.data : item);
+        this.statusMenuOpenId = null;
+      },
+      error: () => {
+        this.statusMenuOpenId = null;
+      }
+    });
   }
 
   toggleAll(e: Event): void {
@@ -345,8 +731,11 @@ export class StaffListComponent implements OnInit {
 
   bulkDelete(): void {
     const ids = Array.from(this.selected);
-    Promise.all(ids.map(id => this.staffService.delete(id).toPromise()))
-      .then(() => { this.selected.clear(); this.loadStaff(); });
+    if (ids.length === 0) return;
+    forkJoin(ids.map(id => this.staffService.delete(id))).subscribe(() => {
+      this.selected.clear();
+      this.loadStaff();
+    });
   }
 
   restore(id: string): void {

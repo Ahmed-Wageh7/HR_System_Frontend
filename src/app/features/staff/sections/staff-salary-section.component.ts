@@ -64,18 +64,18 @@ import { CurrencyFormatPipe, DateFormatPipe } from '../../../shared/pipes/pipes'
               <span class="badge badge-success salary-status">Paid {{ salary.paidAt ? (salary.paidAt | dateFormat:'MMM d, yyyy') : '' }}</span>
             } @else {
               <span class="badge badge-warning salary-status">Not Paid Yet</span>
-              <button *hasPermission="'salary:pay'" class="btn btn-success" (click)="payConfirmOpen = true">
+              <button *hasPermission="'salary:pay'" class="btn btn-success" [disabled]="actionLoading" (click)="payConfirmOpen = true">
                 <span class="material-icons" style="font-size:16px">payments</span>
                 Pay This Salary
               </button>
             }
 
-            <button *hasPermission="'salary:adjust'" class="btn btn-secondary" (click)="adjustOpen = !adjustOpen">
+            <button *hasPermission="'salary:adjust'" class="btn btn-secondary" [disabled]="actionLoading" (click)="adjustOpen = !adjustOpen">
               <span class="material-icons" style="font-size:16px">tune</span>
               Adjust Salary
             </button>
 
-            <button *hasPermission="'salary:pay'" class="btn btn-primary" (click)="bulkConfirmOpen = true">
+            <button *hasPermission="'salary:pay'" class="btn btn-primary" [disabled]="actionLoading" (click)="bulkConfirmOpen = true">
               <span class="material-icons" style="font-size:16px">sync_alt</span>
               Pull Pay For Month
             </button>
@@ -84,8 +84,8 @@ import { CurrencyFormatPipe, DateFormatPipe } from '../../../shared/pipes/pipes'
           @if (adjustOpen) {
             <div class="adjust-panel">
               <input type="number" class="form-control" placeholder="Adjustment amount" [(ngModel)]="adjustments">
-              <button class="btn btn-primary" (click)="saveAdjustment()">Save Adjustment</button>
-              <button class="btn btn-ghost" (click)="adjustOpen = false">Cancel</button>
+              <button class="btn btn-primary" [disabled]="actionLoading" (click)="saveAdjustment()">Save Adjustment</button>
+              <button class="btn btn-ghost" [disabled]="actionLoading" (click)="adjustOpen = false">Cancel</button>
             </div>
           }
         }
@@ -232,6 +232,7 @@ export class StaffSalarySectionComponent implements OnInit {
   selectedMonth = format(new Date(), 'yyyy-MM');
   salary: SalaryRecord | null = null;
   loading = true;
+  actionLoading = false;
   payConfirmOpen = false;
   bulkConfirmOpen = false;
   adjustOpen = false;
@@ -267,29 +268,41 @@ export class StaffSalarySectionComponent implements OnInit {
 
   paySalary(): void {
     if (!this.staffId) return;
+    this.actionLoading = true;
     this.staffService.paySalary(this.staffId, this.selectedMonth).subscribe({
       next: (response) => {
         this.salary = response.data;
         this.payConfirmOpen = false;
+        this.actionLoading = false;
       },
       error: () => {
         this.payConfirmOpen = false;
+        this.actionLoading = false;
       },
     });
   }
 
   saveAdjustment(): void {
     if (!this.staffId) return;
+    this.actionLoading = true;
     this.staffService.adjustSalary(this.staffId, this.selectedMonth, this.adjustments).subscribe(() => {
       this.adjustOpen = false;
+      this.actionLoading = false;
       this.loadSalary();
+    }, () => {
+      this.actionLoading = false;
     });
   }
 
   bulkPay(): void {
+    this.actionLoading = true;
     this.staffService.bulkPay(this.selectedMonth).subscribe(() => {
       this.bulkConfirmOpen = false;
+      this.actionLoading = false;
       this.loadSalary();
+    }, () => {
+      this.bulkConfirmOpen = false;
+      this.actionLoading = false;
     });
   }
 }

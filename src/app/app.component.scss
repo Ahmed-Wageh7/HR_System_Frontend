@@ -4,7 +4,8 @@
   top: 24px;
   z-index: 10000;
   display: flex;
-  max-width: 360px;
+  width: min(720px, calc(100vw - 32px));
+  max-width: 720px;
   flex-direction: column;
   gap: 8px;
 }
@@ -17,17 +18,22 @@
 .toast {
   display: flex;
   cursor: pointer;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   border: 1px solid var(--border-strong);
   border-left: 3px solid;
   border-radius: var(--radius);
   background: var(--bg-card);
-  padding: 12px 16px;
-  font-size: 13px;
+  padding: 14px 18px;
+  font-size: 14px;
   font-weight: 500;
   box-shadow: var(--shadow-lg);
   animation: slide-in 0.25s ease-out;
+  line-height: 1.5;
+}
+
+.toast span:last-child {
+  flex: 1;
 }
 
 .toast-success {

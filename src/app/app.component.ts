@@ -9,6 +9,7 @@ interface ToastMessage {
   id: number;
   type: string;
   message: string;
+  key: string;
 }
 
 @Component({
@@ -24,6 +25,8 @@ export class AppComponent implements OnInit {
   private readonly auth = inject(AuthService);
   readonly toasts = signal<ToastMessage[]>([]);
   private nextId = 0;
+  private readonly recentToastTimes = new Map<string, number>();
+  private readonly toastTimeouts = new Map<number, ReturnType<typeof setTimeout>>();
 
   ngOnInit(): void {
     window.addEventListener('app:toast', (e: Event) => {
@@ -39,12 +42,30 @@ export class AppComponent implements OnInit {
   }
 
   addToast(type: string, message: string): void {
+    const key = `${type}:${message}`;
+    const now = Date.now();
+    const lastShown = this.recentToastTimes.get(key) ?? 0;
+    if (now - lastShown < 2500) {
+      return;
+    }
+
+    this.recentToastTimes.set(key, now);
     const id = ++this.nextId;
-    this.toasts.update((items) => [...items, { id, type, message }]);
-    setTimeout(() => this.removeToast(id), 4000);
+    this.toasts.update((items) => {
+      const nextItems = [...items, { id, type, message, key }];
+      return nextItems.slice(-4);
+    });
+
+    const timeoutId = setTimeout(() => this.removeToast(id), 4500);
+    this.toastTimeouts.set(id, timeoutId);
   }
 
   removeToast(id: number): void {
+    const timeoutId = this.toastTimeouts.get(id);
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      this.toastTimeouts.delete(id);
+    }
     this.toasts.update((items) => items.filter((toast) => toast.id !== id));
   }
 

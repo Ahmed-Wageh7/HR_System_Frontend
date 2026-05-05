@@ -131,7 +131,8 @@ a { color: var(--accent); text-decoration: none; }
   align-items: center;
   justify-content: center;
   line-height: 1;
-  font-size: 1em;
+  font-size: 20px;
+  vertical-align: middle;
 }
 
 .material-icons.spin {
@@ -444,6 +445,11 @@ table.data-table {
   &.avatar-xl { width: 80px; height: 80px; font-size: 28px; }
 }
 
+.avatar-fallback-icon {
+  font-size: 1.15em;
+  color: var(--accent);
+}
+
 // ── Search Input ───────────────────────────────────────────
 .search-input-wrapper {
   position: relative;
@@ -552,10 +558,10 @@ table.data-table {
   background: var(--bg-card);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
-  padding: 22px;
+  padding: 18px;
   width: min(100%, 440px);
   max-width: 440px;
-  max-height: min(84vh, 720px);
+  max-height: min(76vh, 640px);
   overflow-y: auto;
   box-shadow: var(--shadow-lg);
   animation: slideUp 0.2s ease-out;
@@ -568,6 +574,61 @@ table.data-table {
   .modal-footer { display: flex; gap: 8px; justify-content: flex-end; margin-top: 24px; }
 }
 @keyframes slideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+.status-select {
+  position: relative;
+  display: inline-flex;
+}
+
+.status-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.status-trigger .status-caret {
+  font-size: 16px;
+  opacity: 0.8;
+}
+
+.status-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 170px;
+  z-index: 40;
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  background: var(--bg-card);
+  box-shadow: var(--shadow-lg);
+  padding: 8px;
+}
+
+.status-menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  color: var(--text-primary);
+  padding: 10px 12px;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.status-menu-item:hover {
+  background: var(--bg-elevated);
+}
+
+.status-menu-item.active {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
 
 // ── Empty State ────────────────────────────────────────────
 .empty-state {

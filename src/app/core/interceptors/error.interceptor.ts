@@ -7,8 +7,10 @@ import { UiService } from '../services/ui.service';
 export const errorInterceptor: HttpInterceptorFn = (req, next) => {
   return next(req).pipe(
     catchError((err: HttpErrorResponse) => {
-      if (err.status === 401) showToast('error', translateMessage('Session expired. Please log in again.', 'انتهت الجلسة، برجاء تسجيل الدخول مرة أخرى.'));
-      else if (err.status === 403) showToast('error', translateMessage('Access denied', 'ليس لديك صلاحية للوصول.'));
+      if (err.status === 401) {
+        return throwError(() => err);
+      }
+      else if (err.status === 403) showToast('warning', translateMessage('Access denied', 'ليس لديك صلاحية للوصول.'));
       else if (err.status === 404) showToast('error', translateMessage('Resource not found', 'العنصر غير موجود.'));
       else if (err.status === 422) {
         const msg = err.error?.message || translateMessage('Validation error', 'بيانات غير صحيحة.');

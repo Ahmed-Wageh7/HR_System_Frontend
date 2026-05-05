@@ -17,6 +17,11 @@ interface NavItem {
   adminOnly?: boolean;
 }
 
+interface NestedNavItem {
+  label: string;
+  route: string | null;
+}
+
 @Component({
   selector: 'app-admin-layout',
   standalone: true,
@@ -49,6 +54,40 @@ export class AdminLayoutComponent implements OnInit {
     { label: 'Profile', icon: 'manage_accounts', route: '/profile' },
   ];
 
+  get isStaffRoute(): boolean {
+    return this.router.url.split('?')[0].startsWith('/staff');
+  }
+
+  get showStaffSubnav(): boolean {
+    return this.isStaffRoute;
+  }
+
+  get staffSubnav(): NestedNavItem[] {
+    const activeStaffId = this.getSidebarStaffId();
+    const staffBase = activeStaffId ? `/staff/${activeStaffId}` : null;
+    return [
+      { label: 'Staff Info', route: staffBase ? `${staffBase}/profile` : null },
+      { label: 'Attendance', route: staffBase ? `${staffBase}/attendance` : null },
+      { label: 'Salary', route: staffBase ? `${staffBase}/salary` : null },
+      { label: 'Deductions', route: staffBase ? `${staffBase}/deductions` : null },
+      { label: 'Documents', route: staffBase ? `${staffBase}/documents` : null },
+    ];
+  }
+
+  private getSidebarStaffId(): string | null {
+    const url = this.router.url.split('?')[0];
+    const parts = url.split('/').filter(Boolean);
+    if (parts[0] === 'staff' && parts[1] && parts[1] !== 'new' && parts[2] !== 'edit') {
+      return parts[1];
+    }
+
+    if (typeof window === 'undefined') {
+      return null;
+    }
+
+    return localStorage.getItem('lastStaffWorkspaceId');
+  }
+
   ngOnInit(): void {
     this.ui.syncViewport();
     const token = this.auth.getAccessToken();
@@ -77,7 +116,19 @@ export class AdminLayoutComponent implements OnInit {
   }
 
   handleNavClick(): void {
-    this.ui.closeSidebar();
+    if (this.ui.isMobile()) {
+      this.ui.closeSidebar();
+    }
+  }
+
+  handleNavItemClick(event: MouseEvent): void {
+    if (this.ui.isTablet() && !this.ui.sidebarExpanded()) {
+      event.preventDefault();
+      this.ui.toggleSidebar();
+      return;
+    }
+
+    this.handleNavClick();
   }
 
   getCurrentSection(): string {

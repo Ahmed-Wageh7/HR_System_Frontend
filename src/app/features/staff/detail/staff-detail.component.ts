@@ -28,7 +28,7 @@ import { CurrencyFormatPipe, DateFormatPipe, InitialsPipe } from '../../../share
               @if (staff.user.avatar) {
                 <img [src]="staff.user.avatar" alt="" class="avatar-image">
               } @else {
-                {{ staff.user.name | initials }}
+                <span class="material-icons avatar-fallback-icon">account_circle</span>
               }
             </div>
             <div>

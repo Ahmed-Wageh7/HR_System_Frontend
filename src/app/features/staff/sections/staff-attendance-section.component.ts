@@ -160,6 +160,11 @@ import { DateFormatPipe } from '../../../shared/pipes/pipes';
       place-items: center;
     }
 
+    .data-table-wrapper {
+      max-height: min(52vh, 520px);
+      overflow: auto;
+    }
+
     .compact-empty {
       padding: 28px 18px;
     }

@@ -31,7 +31,7 @@ import { differenceInDays, parseISO } from 'date-fns';
 
     @if (requestOpen) {
       <div class="modal-backdrop" (click)="closeRequestModal()">
-        <div class="modal" style="max-width:640px;max-height:90vh;overflow-y:auto" (click)="$event.stopPropagation()">
+        <div class="modal" style="max-width:640px;max-height:78vh;overflow-y:auto" (click)="$event.stopPropagation()">
           <div class="modal-header">
             <div>
               <div class="modal-title">Request Leave</div>
@@ -345,11 +345,32 @@ export class LeaveFormComponent {
             <div class="page-subtitle">{{ leave.startDate | dateFormat }} → {{ leave.endDate | dateFormat }}</div>
           </div>
         </div>
-        <span class="badge"
-          [class.badge-warning]="leave.status === 'pending'"
-          [class.badge-success]="leave.status === 'approved'"
-          [class.badge-danger]="leave.status === 'rejected'"
-          style="padding:6px 14px;font-size:13px">{{ leave.status }}</span>
+        <div class="status-select">
+          <button class="btn btn-ghost btn-sm status-trigger" type="button" [disabled]="!isAdmin" (click)="toggleStatusMenu()">
+            <span class="badge"
+              [class.badge-warning]="leave.status === 'pending'"
+              [class.badge-success]="leave.status === 'approved'"
+              [class.badge-danger]="leave.status === 'rejected'"
+              style="padding:6px 14px;font-size:13px">{{ leave.status }}</span>
+            <span class="material-icons status-caret">keyboard_arrow_down</span>
+          </button>
+          @if (statusMenuOpen && isAdmin) {
+            <div class="status-menu">
+              <button class="status-menu-item" [class.active]="leave.status === 'pending'" (click)="setStatus('pending')">
+                <span>Pending</span>
+                @if (leave.status === 'pending') { <span class="material-icons">check</span> }
+              </button>
+              <button class="status-menu-item" [class.active]="leave.status === 'approved'" (click)="setStatus('approved')">
+                <span>Approved</span>
+                @if (leave.status === 'approved') { <span class="material-icons">check</span> }
+              </button>
+              <button class="status-menu-item" [class.active]="leave.status === 'rejected'" (click)="setStatus('rejected')">
+                <span>Rejected</span>
+                @if (leave.status === 'rejected') { <span class="material-icons">check</span> }
+              </button>
+            </div>
+          }
+        </div>
       </div>
 
       <div style="max-width:560px">
@@ -396,6 +417,7 @@ export class LeaveDetailComponent implements OnInit {
   leave: Leave | null = null;
   reviewNote = '';
   isAdmin = false;
+  statusMenuOpen = false;
 
   ngOnInit(): void {
     this.isAdmin = this.auth.hasPermission('leave:update');
@@ -419,6 +441,21 @@ export class LeaveDetailComponent implements OnInit {
     if (!this.leave) return;
     this.svc.updateStatus(this.leave._id, status, this.reviewNote || null).subscribe(res => {
       this.leave = res.data;
+      this.statusMenuOpen = false;
     });
+  }
+
+  toggleStatusMenu(): void {
+    if (!this.isAdmin) return;
+    this.statusMenuOpen = !this.statusMenuOpen;
+  }
+
+  setStatus(status: 'pending' | 'approved' | 'rejected'): void {
+    if (!this.leave) return;
+    if (status === 'pending') {
+      this.statusMenuOpen = false;
+      return;
+    }
+    this.review(status);
   }
 }

@@ -61,7 +61,7 @@ const ICON_MAP: Record<string, string> = {
 })
 export class IconComponent {
   readonly name = input.required<string>();
-  readonly size = input<string | null>(null);
+  readonly size = input<string | null>('22px');
   readonly spin = input(false);
   readonly extraClass = input('');
 

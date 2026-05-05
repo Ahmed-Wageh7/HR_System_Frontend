@@ -947,14 +947,31 @@ export class TicketFormComponent {
           <div class="page-subtitle">Ticket #{{ ticket._id.slice(-6) }}</div>
         </div>
         <div class="flex gap-8 items-center">
-          <span class="badge" [class.badge-info]="ticket.status==='open'" [class.badge-warning]="ticket.status==='in_progress'" [class.badge-success]="ticket.status==='resolved'" [class.badge-muted]="ticket.status==='closed'">{{ ticket.status }}</span>
-          <div *hasPermission="'ticket:update'" class="flex gap-8">
-            <select class="form-control" style="width:140px" [(ngModel)]="newStatus" [disabled]="statusUpdating" (ngModelChange)="updateStatus()">
-              <option value="open">Open</option>
-              <option value="in_progress">In Progress</option>
-              <option value="resolved">Resolved</option>
-              <option value="closed">Closed</option>
-            </select>
+          <div class="status-select">
+            <button class="btn btn-ghost btn-sm status-trigger" type="button" [disabled]="statusUpdating || !canUpdateTicketStatus" (click)="statusMenuOpen = !statusMenuOpen">
+              <span class="badge" [class.badge-info]="ticket.status==='open'" [class.badge-warning]="ticket.status==='in_progress'" [class.badge-success]="ticket.status==='resolved'" [class.badge-muted]="ticket.status==='closed'">{{ ticket.status }}</span>
+              <span class="material-icons status-caret">keyboard_arrow_down</span>
+            </button>
+            @if (statusMenuOpen && canUpdateTicketStatus) {
+              <div class="status-menu">
+                <button class="status-menu-item" [class.active]="ticket.status === 'open'" (click)="setStatus('open')">
+                  <span>Open</span>
+                  @if (ticket.status === 'open') { <span class="material-icons">check</span> }
+                </button>
+                <button class="status-menu-item" [class.active]="ticket.status === 'in_progress'" (click)="setStatus('in_progress')">
+                  <span>In Progress</span>
+                  @if (ticket.status === 'in_progress') { <span class="material-icons">check</span> }
+                </button>
+                <button class="status-menu-item" [class.active]="ticket.status === 'resolved'" (click)="setStatus('resolved')">
+                  <span>Resolved</span>
+                  @if (ticket.status === 'resolved') { <span class="material-icons">check</span> }
+                </button>
+                <button class="status-menu-item" [class.active]="ticket.status === 'closed'" (click)="setStatus('closed')">
+                  <span>Closed</span>
+                  @if (ticket.status === 'closed') { <span class="material-icons">check</span> }
+                </button>
+              </div>
+            }
           </div>
         </div>
       </div>
@@ -997,6 +1014,7 @@ export class TicketFormComponent {
 export class TicketDetailComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly svc = inject(TicketService);
+  private readonly auth = inject(AuthService);
 
   loading = true;
   ticket: Ticket | null = null;
@@ -1004,6 +1022,11 @@ export class TicketDetailComponent implements OnInit {
   replying = false;
   newStatus = 'open';
   statusUpdating = false;
+  statusMenuOpen = false;
+
+  get canUpdateTicketStatus(): boolean {
+    return this.auth.hasPermission('ticket:update');
+  }
 
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id')!;
@@ -1034,12 +1057,19 @@ export class TicketDetailComponent implements OnInit {
         this.ticket = res.data;
         this.newStatus = res.data.status;
         this.statusUpdating = false;
+        this.statusMenuOpen = false;
       },
       error: () => {
         this.newStatus = this.ticket?.status ?? 'open';
         this.statusUpdating = false;
+        this.statusMenuOpen = false;
       }
     });
+  }
+
+  setStatus(status: Ticket['status']): void {
+    this.newStatus = status;
+    this.updateStatus();
   }
 
   getReplyUser(r: { user?: { name?: string } | string }): string {
@@ -1068,7 +1098,7 @@ export class TicketDetailComponent implements OnInit {
             @if (auth.currentUser()?.avatar) {
               <img [src]="auth.currentUser()!.avatar!" [ngStyle]="avatarImageStyle" alt="Profile photo" class="profile-avatar-image">
             } @else {
-              {{ getInitials() }}
+              <span class="material-icons avatar-fallback-icon">account_circle</span>
             }
           </button>
           <div class="profile-photo-actions">
