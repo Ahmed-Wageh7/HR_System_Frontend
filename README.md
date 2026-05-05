@@ -8,19 +8,19 @@ A production-ready Angular 17+ HR Management System frontend built for the NTI A
 
 ## Tech Stack
 
-| Technology | Purpose |
-|---|---|
-| Angular 17+ (Standalone) | SPA Framework |
-| TypeScript (strict mode) | Type safety |
-| RxJS | Reactive programming |
-| Angular Router + Guards | Client-side routing |
-| Angular Reactive Forms | All forms |
-| HttpClient + Interceptors | API communication |
-| JWT in-memory + httpOnly cookie | Auth token handling |
-| Socket.io-client | Real-time notifications |
-| Chart.js | Dashboard charts |
-| date-fns | Date formatting |
-| Custom SCSS Design System | Styling |
+| Technology                      | Purpose                 |
+| ------------------------------- | ----------------------- |
+| Angular 17+ (Standalone)        | SPA Framework           |
+| TypeScript (strict mode)        | Type safety             |
+| RxJS                            | Reactive programming    |
+| Angular Router + Guards         | Client-side routing     |
+| Angular Reactive Forms          | All forms               |
+| HttpClient + Interceptors       | API communication       |
+| JWT in-memory + httpOnly cookie | Auth token handling     |
+| Socket.io-client                | Real-time notifications |
+| Chart.js                        | Dashboard charts        |
+| date-fns                        | Date formatting         |
+| Custom SCSS Design System       | Styling                 |
 
 ## Project Structure
 
@@ -57,6 +57,7 @@ src/
 ## Installation & Setup
 
 ### Prerequisites
+
 - Node.js 18+
 - npm 9+
 
@@ -88,8 +89,8 @@ Edit `src/environments/environment.ts`:
 ```typescript
 export const environment = {
   production: false,
-  apiUrl: 'https://hr-system-backend-green.vercel.app/api',
-  socketUrl: 'https://hr-system-backend-green.vercel.app',
+  apiUrl: "https://hr-system-backend-green.vercel.app/api",
+  socketUrl: "https://hr-system-backend-green.vercel.app",
   devRefreshToken: null,
 };
 ```
@@ -128,40 +129,44 @@ After pushing to GitHub:
 
 ## Feature List & Routes
 
-| Feature | Routes | Description |
-|---|---|---|
-| Authentication | `/auth/login`, `/auth/forgot-password`, `/auth/reset-password/:token` | JWT auth with silent refresh |
-| Dashboard | `/dashboard` | Stats widgets, department chart, audit activity |
-| Staff Management | `/staff`, `/staff/new`, `/staff/:id`, `/staff/:id/edit` | Full CRUD with server-side pagination |
-| Attendance | `/attendance`, `/attendance/checkin` | Daily tracking, check-in/out |
-| Salary | `/salary`, `/salary/:staffId/:month` | Payroll overview, pay flow, deductions |
-| Leaves | `/leaves`, `/leaves/new`, `/leaves/:id` | Request, approve/reject |
-| Departments | `/departments` | Cards, archive/restore |
-| Roles & Permissions | `/roles` | Permission matrix editor |
-| Audit Logs | `/audit-logs` | Filterable log table with CSV export |
-| Tickets | `/tickets`, `/tickets/new`, `/tickets/:id` | Support ticket system |
-| Profile | `/profile` | Avatar upload, password change |
+| Feature             | Routes                                                                | Description                                     |
+| ------------------- | --------------------------------------------------------------------- | ----------------------------------------------- |
+| Authentication      | `/auth/login`, `/auth/forgot-password`, `/auth/reset-password/:token` | JWT auth with silent refresh                    |
+| Dashboard           | `/dashboard`                                                          | Stats widgets, department chart, audit activity |
+| Staff Management    | `/staff`, `/staff/new`, `/staff/:id`, `/staff/:id/edit`               | Full CRUD with server-side pagination           |
+| Attendance          | `/attendance`, `/attendance/checkin`                                  | Daily tracking, check-in/out                    |
+| Salary              | `/salary`, `/salary/:staffId/:month`                                  | Payroll overview, pay flow, deductions          |
+| Leaves              | `/leaves`, `/leaves/new`, `/leaves/:id`                               | Request, approve/reject                         |
+| Departments         | `/departments`                                                        | Cards, archive/restore                          |
+| Roles & Permissions | `/roles`                                                              | Permission matrix editor                        |
+| Audit Logs          | `/audit-logs`                                                         | Filterable log table with CSV export            |
+| Tickets             | `/tickets`, `/tickets/new`, `/tickets/:id`                            | Support ticket system                           |
+| Profile             | `/profile`                                                            | Avatar upload, password change                  |
 
 ## Architecture Highlights
 
 ### Token Security
+
 - Access token stored **only in Angular Signal** (memory) — never localStorage/sessionStorage
 - Refresh token is httpOnly cookie handled automatically by browser
 - Silent refresh on app init via `APP_INITIALIZER`
 - Auto-retry on 401 with `refreshInterceptor`
 
 ### RBAC
+
 - `*hasPermission="'salary:pay'"` directive hides/shows UI elements
 - `authGuard` protects all authenticated routes
 - `guestGuard` redirects logged-in users from auth pages
 - `unsavedGuard` warns before leaving dirty forms
 
 ### State Management
+
 - Angular Signals for reactive state (no NgRx required)
 - `shareReplay(1)` caching for departments and roles
 - Cache invalidated on any mutating operation
 
 ### HTTP Layer
+
 - `authInterceptor` — attaches `Bearer` token
 - `refreshInterceptor` — handles 401 → refresh → retry
 - `errorInterceptor` — global error toasts (403, 404, 429, 5xx)
@@ -172,31 +177,3 @@ After pushing to GitHub:
 ```
 https://hr-system-backend-green.vercel.app/api
 ```
-
-## Known Limitations / Pending Features
-
-- Dark mode toggle implemented (signals-based), light mode styles pending full override
-- Socket.io requires server-side socket setup (currently gracefully degraded)
-- Attendance report shows first staff's records as aggregate view (API limitation)
-- PWA service worker not included (bonus feature)
-- NgRx not implemented (bonus feature)
-- E2E Cypress tests not included (bonus feature)
-
-## Grading Coverage
-
-| Module | Points | Status |
-|---|---|---|
-| Auth & Token Management | 10 | ✅ Full implementation |
-| Routing & Lazy Loading | 8 | ✅ All routes lazy-loaded |
-| Dashboard | 7 | ✅ forkJoin, widgets, charts |
-| Staff Management | 12 | ✅ Full CRUD, tabs, pagination |
-| Attendance | 8 | ✅ Check-in/out, list |
-| Salary & Deductions | 10 | ✅ Breakdown, pay flow, deductions |
-| Leave Management | 7 | ✅ Request, approve/reject |
-| RBAC UI & Permission Directive | 8 | ✅ Matrix, hasPermission |
-| Real-Time Notifications | 7 | ✅ Socket service, bell |
-| Global Patterns | 8 | ✅ Interceptors, skeleton, empty states |
-| Security | 5 | ✅ No token leaks, CSRF ready |
-| Responsive + A11y | 5 | ✅ Mobile layout |
-| Code Quality | 5 | ✅ Strict TS, clean arch |
-| **Total** | **100** | |

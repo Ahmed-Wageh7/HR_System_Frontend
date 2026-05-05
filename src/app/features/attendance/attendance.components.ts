@@ -277,7 +277,7 @@ export class AttendanceListComponent implements OnInit {
 
         forkJoin(
           staff.map(member =>
-            this.staffService.getAttendance(member._id, month).pipe(
+            this.staffService.getAttendance(member._id, { page: 1, limit: 100 }).pipe(
               catchError(() => of({ data: [] as AttendanceRecord[] }))
             )
           )
@@ -287,6 +287,7 @@ export class AttendanceListComponent implements OnInit {
               .flatMap((response, index) => {
                 const member = staff[index];
                 return this.normalizeAttendanceRecords(response.data)
+                  .filter(record => record.date?.startsWith(month))
                   .filter(record => record.date?.startsWith(this.selectedDate))
                   .map(record => this.attachStaff(record, member));
               })

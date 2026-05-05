@@ -81,7 +81,7 @@ import { PayrollReport, SalaryRecord } from '../../core/models';
                 </td>
                 <td>{{ r.baseSalary | currencyFormat }}</td>
                 <td class="text-danger">
-                  -{{ (r.lateDeductions + r.absentDeductions + r.manualDeductions) | currencyFormat }}
+                  -{{ ((r.lateDeductions ?? 0) + (r.absentDeductions ?? 0) + (r.manualDeductions ?? 0)) | currencyFormat }}
                 </td>
                 <td class="fw-bold text-accent">{{ r.finalSalary | currencyFormat }}</td>
                 <td>
@@ -92,7 +92,7 @@ import { PayrollReport, SalaryRecord } from '../../core/models';
                   }
                 </td>
                 <td>
-                  <a [routerLink]="['/salary', getStaffId(r), selectedMonth]" class="btn btn-ghost btn-sm">
+                  <a [routerLink]="['/staff', getStaffId(r), 'salary']" [queryParams]="{ month: selectedMonth }" class="btn btn-ghost btn-sm">
                     <span class="material-icons" style="font-size:16px">visibility</span>
                   </a>
                 </td>

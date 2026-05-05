@@ -28,36 +28,13 @@ import { format } from 'date-fns';
     }
 
     <form [formGroup]="form" (ngSubmit)="onSubmit()" [style.max-width]="embedded ? '100%' : '700px'">
-      <!-- Avatar Preview -->
-      @if (!isEdit) {
-        <div class="card mb-16">
-          <div class="fw-bold mb-12">Profile Photo</div>
-          <div class="flex items-center gap-16">
-            <div class="avatar avatar-xl" style="font-size:32px">
-              @if (avatarPreview) {
-                <img [src]="avatarPreview" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover">
-              } @else {
-                {{ form.get('name')?.value?.slice(0,1)?.toUpperCase() || '?' }}
-              }
-            </div>
-            <div>
-              <button type="button" class="btn btn-secondary" (click)="avatarInput.click()">
-                <span class="material-icons" style="font-size:16px">upload</span> Upload Photo
-              </button>
-              <input #avatarInput type="file" accept="image/*" style="display:none" (change)="onAvatarChange($event)">
-              <div class="text-muted mt-4" style="font-size:12px">JPG, PNG or GIF. Max 2MB</div>
-            </div>
-          </div>
-        </div>
-      }
-
       <!-- Personal Info -->
       <div class="card mb-16">
         <div class="fw-bold mb-16">Personal Information</div>
         <div class="form-row">
           <div class="form-group">
             <label>Full Name *</label>
-            <input type="text" class="form-control" formControlName="name" placeholder="Ahmed Mohamed">
+            <input type="text" class="form-control" formControlName="name" placeholder="Ahmed Mohamed" [attr.readonly]="isEdit || null">
             @if (f['name'].invalid && f['name'].touched) {
               <span class="field-error"><span class="material-icons" style="font-size:14px">error_outline</span>Full name is required</span>
             }
@@ -73,17 +50,8 @@ import { format } from 'date-fns';
         <div class="form-row">
           <div class="form-group">
             <label>Phone</label>
-            <input type="tel" class="form-control" formControlName="phone" placeholder="+20 1000000000">
+            <input type="tel" class="form-control" formControlName="phone" placeholder="+20 1000000000" [attr.readonly]="isEdit || null">
           </div>
-          @if (!isEdit) {
-            <div class="form-group">
-              <label>Password *</label>
-              <input type="password" class="form-control" formControlName="password" placeholder="Min 8 chars">
-              @if (f['password'].invalid && f['password'].touched) {
-                <span class="field-error"><span class="material-icons" style="font-size:14px">error_outline</span>Min 8 chars, 1 uppercase, 1 number</span>
-              }
-            </div>
-          }
         </div>
       </div>
 
@@ -153,15 +121,12 @@ export class StaffFormComponent implements OnInit, CanComponentDeactivate {
   isEdit = false;
   submitting = false;
   departments: Department[] = [];
-  avatarPreview: string | null = null;
-  avatarFile: File | null = null;
   submitted = false;
 
   form = this.fb.group({
     name: ['', Validators.required],
     email: ['', [Validators.required, Validators.email]],
     phone: [''],
-    password: ['', [Validators.required, Validators.pattern(/^(?=.*[A-Z])(?=.*\d).{8,}$/)]],
     dailySalary: [0, [Validators.required, Validators.min(0)]],
     joinDate: [format(new Date(), 'yyyy-MM-dd')],
     department: [''],
@@ -178,11 +143,12 @@ export class StaffFormComponent implements OnInit, CanComponentDeactivate {
     this.deptService.getAll().subscribe(res => this.departments = this.normalizeDepartments(res.data));
 
     if (this.isEdit && id) {
-      this.form.get('password')?.clearValidators();
-      this.form.get('password')?.updateValueAndValidity();
       this.staffService.getById(id).subscribe(res => {
         const s = res.data;
         this.form.patchValue({
+          name: s.user.name,
+          email: s.user.email,
+          phone: s.user.phone ?? '',
           dailySalary: s.dailySalary,
           joinDate: s.joinDate ? s.joinDate.split('T')[0] : '',
           department: (s.department as { _id: string } | null)?._id ?? '',
@@ -207,15 +173,6 @@ export class StaffFormComponent implements OnInit, CanComponentDeactivate {
 
   canDeactivate(): boolean {
     return this.submitted || !this.form.dirty;
-  }
-
-  onAvatarChange(e: Event): void {
-    const file = (e.target as HTMLInputElement).files?.[0];
-    if (!file) return;
-    this.avatarFile = file;
-    const reader = new FileReader();
-    reader.onload = () => this.avatarPreview = reader.result as string;
-    reader.readAsDataURL(file);
   }
 
   onSubmit(): void {
@@ -253,7 +210,6 @@ export class StaffFormComponent implements OnInit, CanComponentDeactivate {
         name: val.name as string,
         email: val.email as string,
         phone: val.phone || null,
-        password: val.password as string,
         dailySalary: val.dailySalary as number,
         joinDate: val.joinDate || undefined,
         department: val.department || null,

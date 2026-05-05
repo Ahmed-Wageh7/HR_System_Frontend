@@ -47,12 +47,6 @@ export const appRoutes: Routes = [
         title: 'Salary Overview',
         loadComponent: () => import('./features/salary/salary-overview.component').then(m => m.SalaryOverviewComponent),
       },
-      {
-        path: 'salary/:staffId/:month',
-        title: 'Salary Details',
-        loadComponent: () => import('./features/staff/detail/staff-detail.component').then(m => m.StaffDetailComponent),
-      },
-
       // Leaves
       {
         path: 'leaves',

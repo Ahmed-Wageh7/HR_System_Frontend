@@ -2,7 +2,8 @@
 // API Response Model
 // ============================================================
 export interface ApiResponse<T> {
-  success: boolean;
+  success?: boolean;
+  status?: 'success' | 'fail' | string;
   data: T;
   message?: string;
   pagination?: Pagination;
@@ -61,11 +62,15 @@ export interface AuthResponse {
 export interface Staff {
   _id: string;
   user: User;
+  employeeCode?: string;
   department?: Department | null;
   position?: string | null;
   dailySalary: number;
   joinDate?: string;
   isActive: boolean;
+  annualLeaveBalance?: number;
+  monthlyReports?: SalaryRecord[];
+  isDeleted?: boolean;
   deletedAt?: string | null;
   documents?: StaffDocument[];
   createdAt: string;
@@ -92,8 +97,12 @@ export interface StaffUpdatePayload {
 
 export interface StaffDocument {
   _id: string;
-  filename: string;
+  name?: string;
+  filename?: string;
   url: string;
+  publicId?: string;
+  path?: string;
+  mimeType?: string;
   uploadedAt: string;
 }
 
@@ -131,14 +140,23 @@ export interface AttendanceRecord {
   checkOut?: string;
   isLate: boolean;
   isAbsent: boolean;
+  workingHours?: number;
   workHours?: number;
+  deductionAmount?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface AttendanceSummary {
-  present: number;
-  late: number;
-  absent: number;
   totalDays: number;
+  lateDays: number;
+  absentDays: number;
+  hoursWorked: number;
+}
+
+export interface StaffAttendanceQuery {
+  page?: number;
+  limit?: number;
 }
 
 // ============================================================
@@ -148,10 +166,14 @@ export interface SalaryRecord {
   _id?: string;
   staff: Staff | string;
   month: string;
-  baseSalary: number;
-  lateDeductions: number;
-  absentDeductions: number;
-  manualDeductions: number;
+  baseSalary?: number;
+  lateDeductions?: number;
+  absentDeductions?: number;
+  manualDeductions?: number;
+  totalDaysWorked?: number;
+  lateDays?: number;
+  absentDays?: number;
+  totalDeductions?: number;
   adjustments: number;
   finalSalary: number;
   isPaid: boolean;
@@ -161,16 +183,23 @@ export interface SalaryRecord {
 
 export interface Deduction {
   _id: string;
+  staff?: Staff | string;
   month: string;
   amount: number;
   reason: string;
+  isDeleted?: boolean;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface DeductionPayload {
   month: string;
   amount: number;
   reason: string;
+}
+
+export interface ActionMessage {
+  message: string;
 }
 
 // ============================================================

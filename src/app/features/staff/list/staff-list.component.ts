@@ -1,6 +1,6 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { StaffService } from '../../../core/services/staff.service';
 import { Staff } from '../../../core/models';
@@ -8,12 +8,11 @@ import { InitialsPipe, DateFormatPipe, CurrencyFormatPipe } from '../../../share
 import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialog.component';
 import { HasPermissionDirective } from '../../../shared/directives/has-permission.directive';
 import { StaffFormComponent } from '../form/staff-form.component';
-import { StaffDetailComponent } from '../detail/staff-detail.component';
 
 @Component({
   selector: 'app-staff-list',
   standalone: true,
-  imports: [CommonModule, RouterLink, FormsModule, InitialsPipe, DateFormatPipe, CurrencyFormatPipe, ConfirmDialogComponent, HasPermissionDirective, StaffFormComponent, StaffDetailComponent],
+  imports: [CommonModule, RouterLink, FormsModule, InitialsPipe, DateFormatPipe, CurrencyFormatPipe, ConfirmDialogComponent, HasPermissionDirective, StaffFormComponent],
   template: `
     <div class="page-header">
       <div>
@@ -82,10 +81,10 @@ import { StaffDetailComponent } from '../detail/staff-detail.component';
                           {{ s.user.name | initials }}
                         }
                       </div>
-                      <div>
+                      <a class="staff-name-cell" [routerLink]="['/staff', s._id]">
                         <div class="fw-semibold" style="font-size:13px">{{ s.user.name }}</div>
                         <div class="text-muted" style="font-size:11px">{{ s.user.email }}</div>
-                      </div>
+                      </a>
                     </div>
                   </td>
                   <td>{{ s.department?.name || '—' }}</td>
@@ -103,9 +102,9 @@ import { StaffDetailComponent } from '../detail/staff-detail.component';
                   </td>
                   <td>
                     <div class="flex gap-8">
-                      <button class="btn btn-ghost btn-sm btn-icon" title="View" (click)="openViewModal(s._id)">
+                      <a class="btn btn-ghost btn-sm btn-icon" title="View" [routerLink]="['/staff', s._id]">
                         <span class="material-icons" style="font-size:16px">visibility</span>
-                      </button>
+                      </a>
                       <button *hasPermission="'staff:update'" class="btn btn-ghost btn-sm btn-icon" title="Edit" (click)="openEditModal(s._id)">
                         <span class="material-icons" style="font-size:16px">edit</span>
                       </button>
@@ -183,8 +182,6 @@ import { StaffDetailComponent } from '../detail/staff-detail.component';
             <app-staff-form [embedded]="true" (saved)="handleCreated($event)" (cancelled)="closeModal()" />
           } @else if (modalMode === 'edit' && activeStaffId) {
             <app-staff-form [embedded]="true" [staffId]="activeStaffId" (saved)="handleUpdated($event)" (cancelled)="closeModal()" />
-          } @else if (modalMode === 'view' && activeStaffId) {
-            <app-staff-detail [embedded]="true" [staffId]="activeStaffId" (editRequested)="openEditModal($event)" />
           }
         </div>
       </div>
@@ -211,10 +208,21 @@ import { StaffDetailComponent } from '../detail/staff-detail.component';
       max-height: 86vh;
       margin: 24px 0;
     }
+
+    .staff-name-cell {
+      display: block;
+      min-width: 0;
+      color: inherit;
+    }
+
+    .staff-name-cell .fw-semibold {
+      cursor: pointer;
+    }
   `]
 })
 export class StaffListComponent implements OnInit {
   private readonly staffService = inject(StaffService);
+  private readonly router = inject(Router);
 
   loading = true;
   staffList: Staff[] = [];
@@ -226,7 +234,7 @@ export class StaffListComponent implements OnInit {
   confirmOpen = false;
   deleteTarget: Staff | null = null;
   modalOpen = false;
-  modalMode: 'create' | 'edit' | 'view' | null = null;
+  modalMode: 'create' | 'edit' | null = null;
   activeStaffId: string | null = null;
 
   get totalPages(): number { return Math.ceil(this.totalStaff / this.limit); }
@@ -242,7 +250,6 @@ export class StaffListComponent implements OnInit {
     switch (this.modalMode) {
       case 'create': return 'Add Staff Member';
       case 'edit': return 'Edit Staff Member';
-      case 'view': return 'Staff Details';
       default: return '';
     }
   }
@@ -304,12 +311,6 @@ export class StaffListComponent implements OnInit {
     this.modalOpen = true;
   }
 
-  openViewModal(id: string): void {
-    this.modalMode = 'view';
-    this.activeStaffId = id;
-    this.modalOpen = true;
-  }
-
   openEditModal(id: string): void {
     this.modalMode = 'edit';
     this.activeStaffId = id;
@@ -325,12 +326,13 @@ export class StaffListComponent implements OnInit {
   handleCreated(staff: Staff): void {
     this.closeModal();
     this.loadStaff();
-    this.openViewModal(staff._id);
+    this.router.navigate(['/staff', staff._id]);
   }
 
   handleUpdated(staff: Staff): void {
+    this.closeModal();
     this.loadStaff();
-    this.openViewModal(staff._id);
+    this.router.navigate(['/staff', staff._id]);
   }
 
   confirmDelete(): void {

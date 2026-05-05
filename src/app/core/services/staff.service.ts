@@ -1,8 +1,8 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, tap, shareReplay, BehaviorSubject } from 'rxjs';
+import { Observable, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { ApiResponse, Staff, StaffCreatePayload, StaffUpdatePayload, Deduction, DeductionPayload, SalaryRecord, AttendanceRecord, Pagination } from '../models';
+import { ActionMessage, ApiResponse, AttendanceRecord, AttendanceSummary, Deduction, DeductionPayload, Pagination, SalaryRecord, Staff, StaffAttendanceQuery, StaffCreatePayload, StaffDocument, StaffUpdatePayload } from '../models';
 
 export interface StaffQuery {
   page?: number;
@@ -21,8 +21,6 @@ export class StaffService {
   readonly staffList = signal<Staff[]>([]);
   readonly isLoading = signal(false);
   readonly pagination = signal<Pagination | null>(null);
-
-  private _departmentsCache$?: Observable<unknown>;
 
   getAll(query: StaffQuery = {}): Observable<ApiResponse<Staff[]>> {
     let params = new HttpParams();
@@ -54,37 +52,44 @@ export class StaffService {
     );
   }
 
-  delete(id: string): Observable<void> {
-    return this.http.delete<void>(`${this.api}/admin/staff/${id}`).pipe(
+  delete(id: string): Observable<ApiResponse<Partial<Staff>>> {
+    return this.http.delete<ApiResponse<Partial<Staff>>>(`${this.api}/admin/staff/${id}`).pipe(
       tap(() => this.invalidateCache())
     );
   }
 
-  restore(id: string): Observable<void> {
-    return this.http.patch<void>(`${this.api}/admin/staff/${id}/restore`, {});
+  restore(id: string): Observable<ApiResponse<Partial<Staff>>> {
+    return this.http.patch<ApiResponse<Partial<Staff>>>(`${this.api}/admin/staff/${id}/restore`, {}).pipe(
+      tap(() => this.invalidateCache())
+    );
   }
 
-  getAttendance(id: string, month?: string): Observable<ApiResponse<AttendanceRecord[]>> {
-    const url = month
-      ? `${this.api}/admin/staff/${id}/attendance/${month}`
-      : `${this.api}/admin/staff/${id}/attendance`;
-    return this.http.get<ApiResponse<AttendanceRecord[]>>(url);
+  getAttendance(id: string, query: StaffAttendanceQuery = {}): Observable<ApiResponse<AttendanceRecord[]>> {
+    let params = new HttpParams();
+    Object.entries(query).forEach(([k, v]) => {
+      if (v !== undefined && v !== '') params = params.set(k, String(v));
+    });
+    return this.http.get<ApiResponse<AttendanceRecord[]>>(`${this.api}/admin/staff/${id}/attendance`, { params });
   }
 
-  getSalary(id: string, month: string): Observable<ApiResponse<SalaryRecord>> {
+  getAttendanceByMonth(id: string, month: string): Observable<ApiResponse<AttendanceSummary>> {
+    return this.http.get<ApiResponse<AttendanceSummary>>(`${this.api}/admin/staff/${id}/attendance/${month}`);
+  }
+
+  getSalaryByMonth(id: string, month: string): Observable<ApiResponse<SalaryRecord>> {
     return this.http.get<ApiResponse<SalaryRecord>>(`${this.api}/admin/staff/${id}/salary/${month}`);
   }
 
-  paySalary(id: string, month: string): Observable<void> {
-    return this.http.post<void>(`${this.api}/admin/staff/${id}/salary/${month}/pay`, {});
+  paySalary(id: string, month: string): Observable<ApiResponse<SalaryRecord>> {
+    return this.http.post<ApiResponse<SalaryRecord>>(`${this.api}/admin/staff/${id}/salary/${month}/pay`, {});
   }
 
-  adjustSalary(id: string, month: string, adjustments: number): Observable<void> {
-    return this.http.put<void>(`${this.api}/admin/staff/${id}/salary/${month}/adjust`, { adjustments });
+  adjustSalary(id: string, month: string, adjustments: number): Observable<ApiResponse<ActionMessage>> {
+    return this.http.put<ApiResponse<ActionMessage>>(`${this.api}/admin/staff/${id}/salary/${month}/adjust`, { adjustments });
   }
 
-  bulkPay(month: string): Observable<void> {
-    return this.http.post<void>(`${this.api}/admin/staff/salary/${month}/bulk-pay`, {});
+  bulkPay(month: string): Observable<ApiResponse<ActionMessage>> {
+    return this.http.post<ApiResponse<ActionMessage>>(`${this.api}/admin/staff/salary/${month}/bulk-pay`, {});
   }
 
   getDeductions(id: string): Observable<ApiResponse<Deduction[]>> {
@@ -99,18 +104,18 @@ export class StaffService {
     return this.http.put<ApiResponse<Deduction>>(`${this.api}/admin/staff/${staffId}/deductions/${did}`, payload);
   }
 
-  deleteDeduction(staffId: string, did: string): Observable<void> {
-    return this.http.delete<void>(`${this.api}/admin/staff/${staffId}/deductions/${did}`);
+  deleteDeduction(staffId: string, did: string): Observable<ApiResponse<ActionMessage>> {
+    return this.http.delete<ApiResponse<ActionMessage>>(`${this.api}/admin/staff/${staffId}/deductions/${did}`);
   }
 
-  uploadDocument(id: string, file: File): Observable<unknown> {
+  uploadDocument(id: string, file: File): Observable<ApiResponse<StaffDocument>> {
     const form = new FormData();
     form.append('document', file);
-    return this.http.post(`${this.api}/admin/staff/${id}/documents`, form);
+    return this.http.post<ApiResponse<StaffDocument>>(`${this.api}/admin/staff/${id}/documents`, form);
   }
 
-  deleteDocument(staffId: string, docId: string): Observable<void> {
-    return this.http.delete<void>(`${this.api}/admin/staff/${staffId}/documents/${docId}`);
+  deleteDocument(staffId: string, docId: string): Observable<ApiResponse<ActionMessage>> {
+    return this.http.delete<ApiResponse<ActionMessage>>(`${this.api}/admin/staff/${staffId}/documents/${docId}`);
   }
 
   uploadAvatar(file: File): Observable<unknown> {
@@ -120,7 +125,8 @@ export class StaffService {
   }
 
   private invalidateCache(): void {
-    this._departmentsCache$ = undefined;
+    this.staffList.set([]);
+    this.pagination.set(null);
   }
 
   private normalizeSort(sort: string): string {

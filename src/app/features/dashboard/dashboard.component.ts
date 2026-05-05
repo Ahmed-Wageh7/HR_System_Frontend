@@ -247,7 +247,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
     forkJoin(
       staff.map(member =>
-        this.staffService.getAttendance(member._id, this.currentMonth).pipe(
+        this.staffService.getAttendance(member._id, { page: 1, limit: 100 }).pipe(
           timeout(6000),
           catchError(() => of({ data: [] as AttendanceRecord[] }))
         )
@@ -256,6 +256,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       next: (responses) => {
         const todayRecords = responses
           .flatMap(response => this.normalizeAttendanceRecords(response.data))
+          .filter(record => record.date?.startsWith(this.currentMonth))
           .filter(record => record.date?.startsWith(format(new Date(), 'yyyy-MM-dd')));
 
         this.stats.presentToday = todayRecords.filter(record => !record.isAbsent).length;
