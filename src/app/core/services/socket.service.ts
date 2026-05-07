@@ -5,10 +5,33 @@ import { environment } from '../../../environments/environment';
 import { Notification } from '../models';
 import { showAppToast } from '../utils/toast';
 
+type SocketMessageType = 'announcement' | 'payroll' | 'warning';
+type SocketTargetRole = 'all' | 'staff' | 'admin';
+
+interface IncomingNotificationPayload {
+  _id?: string;
+  id?: string;
+  type?: SocketMessageType;
+  title?: string;
+  message?: string;
+  targetRole?: SocketTargetRole;
+  referenceKey?: string;
+  createdAt?: string;
+}
+
+interface OutgoingAdminMessage {
+  type: SocketMessageType;
+  title: string;
+  message: string;
+  targetRole?: SocketTargetRole;
+  referenceKey?: string;
+  expiresAt?: string | Date;
+}
+
 @Injectable({ providedIn: 'root' })
 export class SocketService {
   private socket: Socket | null = null;
-  private disabled = false;
+  private currentToken: string | null = null;
 
   readonly notifications = signal<Notification[]>([]);
   readonly unreadCount = computed(() =>
@@ -16,36 +39,34 @@ export class SocketService {
   );
 
   connect(token: string): void {
-    if (!token || this.disabled) return;
+    if (!token) return;
 
-    if (this.socket) {
-      this.socket.disconnect();
+    if (this.socket?.connected && this.currentToken === token) {
+      return;
     }
 
+    this.disconnect();
+    this.currentToken = token;
+
     this.socket = io(environment.socketUrl, {
-      transports: ['polling'],
-      upgrade: false,
+      transports: ['websocket', 'polling'],
       reconnectionAttempts: 1,
       withCredentials: true,
+      autoConnect: true,
     });
 
     this.socket.on('connect', () => {
       this.socket?.emit('authenticate', token);
     });
 
-    this.socket.on('connect_error', () => {
-      this.disabled = true;
-      this.socket?.disconnect();
-      this.socket = null;
-      console.warn('Socket connection failed');
+    this.socket.on('connect_error', (error) => {
+      console.warn('Socket connection failed', error?.message ?? error);
     });
 
-    this.socket.on('notification', (payload: unknown) => {
-      this.pushNotification(this.normalizeNotification(payload));
-    });
-
-    this.socket.on('admin:message', (payload: unknown) => {
-      this.pushNotification(this.normalizeNotification(payload));
+    this.socket.on('error', (message: unknown) => {
+      if (message === 'Authentication failed') {
+        showAppToast('error', 'Socket authentication failed.');
+      }
     });
 
     this.socket.on('user:receive-message', (payload: unknown) => {
@@ -56,18 +77,19 @@ export class SocketService {
   disconnect(): void {
     this.socket?.disconnect();
     this.socket = null;
+    this.currentToken = null;
   }
 
   onNotification(): Observable<Notification> {
     return new Observable(observer => {
       if (!this.socket) return;
-      this.socket.on('notification', (payload: unknown) => {
+      this.socket.on('user:receive-message', (payload: unknown) => {
         observer.next(this.normalizeNotification(payload));
       });
     });
   }
 
-  sendAdminMessage(payload: { title: string; message: string; type: string; targetRole?: string }): void {
+  sendAdminMessage(payload: OutgoingAdminMessage): void {
     this.socket?.emit('admin:send-message', payload);
   }
 
@@ -93,7 +115,7 @@ export class SocketService {
   }
 
   private normalizeNotification(payload: unknown): Notification {
-    const value = (payload ?? {}) as Partial<Notification> & { id?: string };
+    const value = (payload ?? {}) as IncomingNotificationPayload;
     return {
       _id: value._id ?? value.id ?? `${Date.now()}`,
       title: value.title ?? 'Notification',
