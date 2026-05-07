@@ -48,10 +48,6 @@ import { format } from 'date-fns';
           }
           <span>Check In</span>
         </button>
-
-        @if (message) {
-          <div class="checkin-msg" [class.success]="!error" [class.error]="error">{{ message }}</div>
-        }
       </div>
     </div>
   `,
@@ -102,11 +98,6 @@ import { format } from 'date-fns';
       &:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
       &.checkout { background: var(--danger); &:hover:not(:disabled) { box-shadow: 0 8px 24px rgba(239,68,68,0.3); } }
     }
-    .checkin-msg {
-      margin-top: 16px; padding: 10px 16px; border-radius: var(--radius-sm); font-size: 13px;
-      &.success { background: var(--success-dim); color: var(--success); }
-      &.error { background: var(--danger-dim); color: var(--danger); }
-    }
     @media (max-width: 480px) {
       .checkin-card { padding: 32px 20px; }
       .checkin-time { font-size: 40px; }
@@ -121,8 +112,6 @@ export class CheckinComponent implements OnInit, OnDestroy {
   isLate = false;
   checkInTime: string | null = null;
   loading = false;
-  message = '';
-  error = false;
 
   private timer?: Subscription;
 
@@ -142,18 +131,13 @@ export class CheckinComponent implements OnInit, OnDestroy {
 
   checkIn(): void {
     this.loading = true;
-    this.message = '';
     this.svc.checkIn().subscribe({
       next: (res) => {
         this.loading = false;
         this.checkInTime = (res.data as { checkIn?: string }).checkIn ?? new Date().toISOString();
-        this.message = 'Checked in successfully!';
-        this.error = false;
       },
-      error: (err) => {
+      error: () => {
         this.loading = false;
-        this.error = true;
-        this.message = err.error?.message || 'Action failed';
       }
     });
   }
@@ -185,10 +169,6 @@ export class CheckinComponent implements OnInit, OnDestroy {
           }
           <span>Check Out</span>
         </button>
-
-        @if (message) {
-          <div class="checkin-msg" [class.success]="!error" [class.error]="error">{{ message }}</div>
-        }
       </div>
     </div>
   `,
@@ -228,11 +208,6 @@ export class CheckinComponent implements OnInit, OnDestroy {
     }
     .checkin-btn:hover:not(:disabled) { box-shadow: 0 8px 24px rgba(239,68,68,0.3); filter: brightness(1.06); transform: translateY(-1px); }
     .checkin-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
-    .checkin-msg {
-      margin-top: 16px; padding: 10px 16px; border-radius: var(--radius-sm); font-size: 13px;
-    }
-    .checkin-msg.success { background: var(--success-dim); color: var(--success); }
-    .checkin-msg.error { background: var(--danger-dim); color: var(--danger); }
     @media (max-width: 480px) {
       .checkin-card { padding: 32px 20px; }
       .checkin-time { font-size: 40px; }
@@ -246,8 +221,6 @@ export class CheckoutComponent implements OnInit, OnDestroy {
   currentDate = '';
   checkOutTime: string | null = null;
   loading = false;
-  message = '';
-  error = false;
 
   private timer?: Subscription;
 
@@ -268,18 +241,13 @@ export class CheckoutComponent implements OnInit, OnDestroy {
 
   checkOut(): void {
     this.loading = true;
-    this.message = '';
     this.svc.checkOut().subscribe({
       next: (res) => {
         this.loading = false;
         this.checkOutTime = (res.data as { checkOut?: string }).checkOut ?? new Date().toISOString();
-        this.message = 'Checked out successfully!';
-        this.error = false;
       },
-      error: (err) => {
+      error: () => {
         this.loading = false;
-        this.error = true;
-        this.message = err.error?.message || 'Action failed';
       }
     });
   }

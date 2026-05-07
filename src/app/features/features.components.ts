@@ -1,4 +1,4 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, effect, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators, FormsModule } from '@angular/forms';
 import { RouterLink, ActivatedRoute, Router } from '@angular/router';
@@ -9,6 +9,7 @@ import { AuthService } from '../core/services/auth.service';
 import { AvatarViewService, AvatarViewSettings } from '../core/services/avatar-view.service';
 import { Department, Role, AuditLog, Ticket, Staff } from '../core/models';
 import { StaffService } from '../core/services/staff.service';
+import { showAppToast } from '../core/utils/toast';
 import { HasPermissionDirective } from '../shared/directives/has-permission.directive';
 import { DateFormatPipe, TimeAgoPipe, CurrencyFormatPipe } from '../shared/pipes/pipes';
 import { ConfirmDialogComponent } from '../shared/components/confirm-dialog.component';
@@ -1220,11 +1221,11 @@ export class TicketDetailComponent implements OnInit {
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, HasPermissionDirective],
   template: `
-    <div class="page-header">
-      <div><div class="page-title">My Profile</div><div class="page-subtitle">Manage your account settings</div></div>
-    </div>
+    <div class="profile-page-shell">
+      <div class="page-header profile-page-header">
+        <div><div class="page-title">My Profile</div><div class="page-subtitle">Manage your account settings</div></div>
+      </div>
 
-    <div style="max-width:600px">
       <!-- Avatar -->
       <div class="card mb-16">
         <div class="fw-bold mb-16">Profile Photo</div>
@@ -1310,9 +1311,6 @@ export class TicketDetailComponent implements OnInit {
             <label>Email</label>
             <input type="email" class="form-control" [value]="auth.currentUser()?.email || ''" readonly style="opacity:0.6">
           </div>
-          @if (profileSuccess) {
-            <div style="background:var(--success-dim);color:var(--success);padding:10px 14px;border-radius:var(--radius-sm);font-size:13px;margin-bottom:12px">Profile updated!</div>
-          }
           <button type="submit" class="btn btn-primary" [disabled]="profileForm.invalid || saving">
             @if (saving) { <span class="spinner"></span> } Save Changes
           </button>
@@ -1333,12 +1331,6 @@ export class TicketDetailComponent implements OnInit {
           <div class="strength-bar mb-16">
             <div class="strength-fill" [class]="pwdStrength.class" [style.width.%]="pwdStrength.pct"></div>
           </div>
-          @if (pwdSuccess) {
-            <div style="background:var(--success-dim);color:var(--success);padding:10px 14px;border-radius:var(--radius-sm);font-size:13px;margin-bottom:12px">Password updated!</div>
-          }
-          @if (pwdError) {
-            <div style="background:var(--danger-dim);color:var(--danger);padding:10px 14px;border-radius:var(--radius-sm);font-size:13px;margin-bottom:12px">{{ pwdError }}</div>
-          }
           <button type="submit" class="btn btn-primary" [disabled]="pwdForm.invalid || pwdSaving">
             @if (pwdSaving) { <span class="spinner"></span> } Update Password
           </button>
@@ -1348,6 +1340,8 @@ export class TicketDetailComponent implements OnInit {
   `,
   styles: [`
     .profile-photo-panel { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .profile-page-shell { width: min(100%, 720px); margin: 0 auto; }
+    .profile-page-header { margin-bottom: 16px; }
     .profile-photo-actions { display: flex; flex-direction: column; align-items: flex-start; }
     .profile-avatar-frame { position: relative; box-shadow: 0 12px 30px rgba(17, 88, 182, 0.18); }
     .profile-avatar-trigger { border: 0; cursor: pointer; }
@@ -1373,10 +1367,7 @@ export class ProfileComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
 
   saving = false;
-  profileSuccess = false;
   pwdSaving = false;
-  pwdSuccess = false;
-  pwdError = '';
   avatarEditorOpen = false;
   avatarViewSettings: AvatarViewSettings = this.avatarViewSvc.get(null);
   draftAvatarViewSettings: AvatarViewSettings = this.avatarViewSvc.get(null);
@@ -1390,6 +1381,19 @@ export class ProfileComponent implements OnInit {
     password: ['', [Validators.required, Validators.pattern(/^(?=.*[A-Z])(?=.*\d).{8,}$/)]],
   });
 
+  private readonly syncCurrentUserState = effect(() => {
+    const user = this.auth.currentUser();
+    if (!user) {
+      this.avatarViewSettings = this.avatarViewSvc.get(null);
+      this.draftAvatarViewSettings = { ...this.avatarViewSettings };
+      return;
+    }
+
+    this.profileForm.patchValue({ name: user.name, phone: user.phone ?? '' }, { emitEvent: false });
+    this.avatarViewSettings = this.avatarViewSvc.get(user._id);
+    this.draftAvatarViewSettings = { ...this.avatarViewSettings };
+  });
+
   get pwdStrength(): { class: string; pct: number } {
     const pw = this.pwdForm.get('password')?.value ?? '';
     if (pw.length < 6) return { class: 'weak', pct: 25 };
@@ -1401,8 +1405,8 @@ export class ProfileComponent implements OnInit {
   ngOnInit(): void {
     const user = this.auth.currentUser();
     if (user) {
-      this.profileForm.patchValue({ name: user.name, phone: user.phone ?? '' });
       this.avatarViewSettings = this.avatarViewSvc.get(user._id);
+      this.draftAvatarViewSettings = { ...this.avatarViewSettings };
     }
   }
 
@@ -1460,8 +1464,6 @@ export class ProfileComponent implements OnInit {
           next: (user) => {
             this.profileForm.patchValue({ name: user.name, phone: user.phone ?? '' });
             this.saving = false;
-            this.profileSuccess = true;
-            setTimeout(() => this.profileSuccess = false, 3000);
           },
           error: () => { this.saving = false; }
         });
@@ -1472,11 +1474,11 @@ export class ProfileComponent implements OnInit {
 
   changePassword(): void {
     if (this.pwdForm.invalid) { this.pwdForm.markAllAsTouched(); return; }
-    this.pwdSaving = true; this.pwdError = '';
+    this.pwdSaving = true;
     // Use auth service forgot-password reset via token, or profile update endpoint
     // Backend may vary; using profile update as fallback
-    this.pwdSaving = false; this.pwdSuccess = true;
-    setTimeout(() => this.pwdSuccess = false, 3000);
+    this.pwdSaving = false;
+    showAppToast('success', 'Password updated successfully.');
   }
 
   uploadAvatar(e: Event): void {

@@ -52,10 +52,17 @@
               routerLinkActive="active"
               [routerLinkActiveOptions]="{ exact: item.route !== '/staff' }"
               [title]="item.label"
-              (click)="handleNavItemClick($event)"
+              (click)="handleNavItemClick($event, item.route)"
             >
               <app-icon [name]="item.icon" extraClass="nav-icon" />
               <span class="nav-label">{{ item.label }}</span>
+              @if (hasNestedNav(item.route)) {
+                <app-icon
+                  class="nav-caret"
+                  [name]="isNestedNavOpen(item.route) ? 'keyboard_arrow_down' : 'chevron_right'"
+                  [size]="'20px'"
+                />
+              }
             </a>
 
             @if (item.route === '/staff' && showStaffSubnav) {
@@ -68,7 +75,6 @@
                     [routerLink]="subItem.route || null"
                     (click)="handleNavClick()"
                   >
-                    <span class="nested-nav-dot"></span>
                     <span>{{ subItem.label }}</span>
                   </a>
                 }
@@ -84,7 +90,6 @@
                     [routerLink]="subItem.route"
                     (click)="handleNavClick()"
                   >
-                    <span class="nested-nav-dot"></span>
                     <span>{{ subItem.label }}</span>
                   </a>
                 }
@@ -100,7 +105,6 @@
                     [routerLink]="subItem.route"
                     (click)="handleNavClick()"
                   >
-                    <span class="nested-nav-dot"></span>
                     <span>{{ subItem.label }}</span>
                   </a>
                 }
@@ -116,7 +120,6 @@
                     [routerLink]="subItem.route"
                     (click)="handleNavClick()"
                   >
-                    <span class="nested-nav-dot"></span>
                     <span>{{ subItem.label }}</span>
                   </a>
                 }
@@ -132,7 +135,6 @@
                     [routerLink]="subItem.route"
                     (click)="handleNavClick()"
                   >
-                    <span class="nested-nav-dot"></span>
                     <span>{{ subItem.label }}</span>
                   </a>
                 }

@@ -173,17 +173,47 @@ export class AdminLayoutComponent implements OnInit {
   handleNavClick(): void {
     if (this.ui.isMobile()) {
       this.ui.closeSidebar();
+      return;
+    }
+
+    if (this.ui.isTablet() && this.ui.sidebarExpanded()) {
+      this.ui.closeSidebar();
     }
   }
 
-  handleNavItemClick(event: MouseEvent): void {
+  handleNavItemClick(event: MouseEvent, route: string): void {
     if (this.ui.isTablet() && !this.ui.sidebarExpanded()) {
       event.preventDefault();
       this.ui.toggleSidebar();
       return;
     }
 
+    if (this.ui.isTablet() && this.ui.sidebarExpanded() && this.hasNestedNav(route)) {
+      return;
+    }
+
     this.handleNavClick();
+  }
+
+  hasNestedNav(route: string): boolean {
+    return ['/staff', '/attendance', '/leaves', '/roles', '/tickets'].includes(route);
+  }
+
+  isNestedNavOpen(route: string): boolean {
+    switch (route) {
+      case '/staff':
+        return this.showStaffSubnav;
+      case '/attendance':
+        return this.showAttendanceSubnav;
+      case '/leaves':
+        return this.showLeavesSubnav;
+      case '/roles':
+        return this.showRolesSubnav;
+      case '/tickets':
+        return this.showTicketsSubnav;
+      default:
+        return false;
+    }
   }
 
   isNestedNavItemActive(route: string | null): boolean {

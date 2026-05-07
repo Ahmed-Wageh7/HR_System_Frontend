@@ -39,6 +39,7 @@ const ICON_MAP: Record<string, string> = {
   people_outline: 'people_outline',
   person_add: 'person_add',
   person_off: 'person_off',
+  keyboard_arrow_down: 'keyboard_arrow_down',
   refresh: 'refresh',
   restore: 'restore',
   save: 'save',

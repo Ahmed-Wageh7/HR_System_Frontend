@@ -80,13 +80,21 @@ import { CurrencyFormatPipe, DateFormatPipe } from '../../../shared/pipes/pipes'
 
     .info-item,
     .mini-stat {
-      display: flex;
-      justify-content: space-between;
+      display: grid;
+      grid-template-columns: minmax(140px, 180px) minmax(0, 1fr);
       gap: 16px;
-      align-items: center;
+      align-items: start;
       padding: 12px 0;
       border-bottom: 1px solid var(--border);
       font-size: 14px;
+    }
+
+    .info-item span:last-child,
+    .mini-stat strong {
+      min-width: 0;
+      text-align: left;
+      justify-self: start;
+      word-break: break-word;
     }
 
     .info-item:last-child,
@@ -111,8 +119,8 @@ import { CurrencyFormatPipe, DateFormatPipe } from '../../../shared/pipes/pipes'
     @media (max-width: 640px) {
       .info-item,
       .mini-stat {
-        flex-direction: column;
-        align-items: flex-start;
+        grid-template-columns: 1fr;
+        gap: 6px;
       }
     }
   `],
