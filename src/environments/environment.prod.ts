@@ -3,4 +3,5 @@ export const environment = {
   apiUrl: "https://hr-system-backend-green.vercel.app/api/v1",
   socketUrl: "",
   enableSockets: false,
+  devRefreshToken: null,
 };
