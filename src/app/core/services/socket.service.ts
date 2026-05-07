@@ -17,6 +17,8 @@ interface IncomingNotificationPayload {
   targetRole?: SocketTargetRole;
   referenceKey?: string;
   createdAt?: string;
+  read?: boolean;
+  link?: string;
 }
 
 interface OutgoingAdminMessage {
@@ -32,6 +34,8 @@ interface OutgoingAdminMessage {
 export class SocketService {
   private socket: Socket | null = null;
   private currentToken: string | null = null;
+  private readonly socketsEnabled =
+    environment.enableSockets !== false && Boolean(environment.socketUrl);
 
   readonly notifications = signal<Notification[]>([]);
   readonly unreadCount = computed(() =>
@@ -39,7 +43,7 @@ export class SocketService {
   );
 
   connect(token: string): void {
-    if (!token) return;
+    if (!token || !this.socketsEnabled) return;
 
     if (this.socket?.connected && this.currentToken === token) {
       return;
@@ -61,6 +65,8 @@ export class SocketService {
 
     this.socket.on('connect_error', (error) => {
       console.warn('Socket connection failed', error?.message ?? error);
+      this.socket?.disconnect();
+      this.socket = null;
     });
 
     this.socket.on('error', (message: unknown) => {
@@ -82,10 +88,20 @@ export class SocketService {
 
   onNotification(): Observable<Notification> {
     return new Observable(observer => {
-      if (!this.socket) return;
-      this.socket.on('user:receive-message', (payload: unknown) => {
+      if (!this.socket) {
+        observer.complete();
+        return;
+      }
+
+      const listener = (payload: unknown) => {
         observer.next(this.normalizeNotification(payload));
-      });
+      };
+
+      this.socket.on('user:receive-message', listener);
+
+      return () => {
+        this.socket?.off('user:receive-message', listener);
+      };
     });
   }
 
