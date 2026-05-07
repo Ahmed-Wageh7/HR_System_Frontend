@@ -40,6 +40,11 @@ export const appRoutes: Routes = [
         title: 'Check In',
         loadComponent: () => import('./features/attendance/attendance.components').then(m => m.CheckinComponent),
       },
+      {
+        path: 'attendance/checkout',
+        title: 'Check Out',
+        loadComponent: () => import('./features/attendance/attendance.components').then(m => m.CheckoutComponent),
+      },
 
       // Salary
       {

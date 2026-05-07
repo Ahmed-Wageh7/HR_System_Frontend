@@ -34,6 +34,7 @@ import { StaffFormComponent } from '../form/staff-form.component';
         <a routerLink="/staff" class="btn btn-secondary mt-16">Back to Staff</a>
       </div>
     } @else {
+      @if (showHeroHeader) {
       <div class="staff-hero card">
         <div class="staff-hero-main">
           <a routerLink="/staff" class="btn btn-ghost btn-icon" aria-label="Back to staff list">
@@ -118,6 +119,7 @@ import { StaffFormComponent } from '../form/staff-form.component';
           }
         </div>
       </div>
+      }
 
       <section class="workspace-body">
         <router-outlet />
@@ -300,6 +302,11 @@ export class StaffWorkspaceComponent implements OnInit {
   loading = true;
   staff: Staff | null = null;
   confirmDeleteOpen = false;
+
+  get showHeroHeader(): boolean {
+    const url = this.router.url.split('?')[0];
+    return /\/staff\/[^/]+(\/profile)?$/.test(url);
+  }
   editModalOpen = false;
   statusMenuOpen = false;
 

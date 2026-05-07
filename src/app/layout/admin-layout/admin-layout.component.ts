@@ -1,10 +1,11 @@
-import { ChangeDetectionStrategy, Component, HostListener, computed, inject, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, HostListener, computed, inject, OnInit, signal } from '@angular/core';
 import { RouterOutlet, RouterLink, RouterLinkActive, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../core/services/auth.service';
 import { AvatarViewService } from '../../core/services/avatar-view.service';
 import { UiService } from '../../core/services/ui.service';
 import { SocketService } from '../../core/services/socket.service';
+import { StaffService } from '../../core/services/staff.service';
 import { InitialsPipe } from '../../shared/pipes/pipes';
 import { TimeAgoPipe } from '../../shared/pipes/pipes';
 import { IconComponent } from '../../shared/components/icon.component';
@@ -20,6 +21,7 @@ interface NavItem {
 interface NestedNavItem {
   label: string;
   route: string | null;
+  startsWith?: boolean;
 }
 
 @Component({
@@ -35,10 +37,12 @@ export class AdminLayoutComponent implements OnInit {
   readonly avatarView = inject(AvatarViewService);
   readonly ui = inject(UiService);
   readonly socket = inject(SocketService);
+  private readonly staffService = inject(StaffService);
   private readonly router = inject(Router);
   readonly currentUser = computed(() => this.auth.currentUser());
   readonly currentUserName = computed(() => this.currentUser()?.name ?? '');
   readonly currentUserEmail = computed(() => this.currentUser()?.email ?? '');
+  readonly fallbackStaffWorkspaceId = signal<string | null>(null);
   notifOpen = false;
  
   readonly navItems: NavItem[] = [
@@ -59,11 +63,27 @@ export class AdminLayoutComponent implements OnInit {
   }
 
   get activeStaffWorkspaceId(): string | null {
-    return this.getSidebarStaffId();
+    return this.getSidebarStaffId() ?? this.fallbackStaffWorkspaceId();
   }
 
   get showStaffSubnav(): boolean {
     return this.isStaffRoute;
+  }
+
+  get showAttendanceSubnav(): boolean {
+    return this.router.url.split('?')[0].startsWith('/attendance');
+  }
+
+  get showLeavesSubnav(): boolean {
+    return this.router.url.split('?')[0].startsWith('/leaves');
+  }
+
+  get showRolesSubnav(): boolean {
+    return this.router.url.split('?')[0].startsWith('/roles');
+  }
+
+  get showTicketsSubnav(): boolean {
+    return this.router.url.split('?')[0].startsWith('/tickets');
   }
 
   get staffSubnav(): NestedNavItem[] {
@@ -76,6 +96,36 @@ export class AdminLayoutComponent implements OnInit {
       { label: 'Deductions', route: staffBase ? `${staffBase}/deductions` : null },
       { label: 'Documents', route: staffBase ? `${staffBase}/documents` : null },
     ];
+  }
+
+  get attendanceSubnav(): NestedNavItem[] {
+    return [
+      { label: 'Attendance Overview', route: '/attendance' },
+      { label: 'Check In', route: '/attendance/checkin' },
+      { label: 'Check Out', route: '/attendance/checkout' },
+    ];
+  }
+
+  get leavesSubnav(): NestedNavItem[] {
+    const items: NestedNavItem[] = [{ label: 'All Leaves', route: '/leaves', startsWith: true }];
+    if (!this.isLeaveAdmin()) {
+      items.push({ label: 'Create Leave', route: '/leaves/new' });
+    }
+    return items;
+  }
+
+  get rolesSubnav(): NestedNavItem[] {
+    return [
+      { label: 'All Roles', route: '/roles', startsWith: true },
+    ];
+  }
+
+  get ticketsSubnav(): NestedNavItem[] {
+    const items: NestedNavItem[] = [{ label: 'All Tickets', route: '/tickets', startsWith: true }];
+    if (!this.isTicketAdmin()) {
+      items.push({ label: 'Create Ticket', route: '/tickets/new' });
+    }
+    return items;
   }
 
   private getSidebarStaffId(): string | null {
@@ -96,6 +146,7 @@ export class AdminLayoutComponent implements OnInit {
     this.ui.syncViewport();
     const token = this.auth.getAccessToken();
     if (token) this.socket.connect(token);
+    this.preloadSidebarStaffWorkspace();
   }
 
   logout(): void {
@@ -136,11 +187,20 @@ export class AdminLayoutComponent implements OnInit {
   }
 
   isNestedNavItemActive(route: string | null): boolean {
+    return this.isNestedNavMatch({ label: '', route });
+  }
+
+  isNestedNavMatch(item: NestedNavItem): boolean {
+    const route = item.route;
     if (!route) {
       return false;
     }
 
-    return this.router.url.split('?')[0] === route;
+    const currentRoute = this.router.url.split('?')[0];
+    if (item.startsWith) {
+      return currentRoute === route || currentRoute.startsWith(`${route}/`);
+    }
+    return currentRoute === route;
   }
 
   getCurrentSection(): string {
@@ -163,5 +223,29 @@ export class AdminLayoutComponent implements OnInit {
   @HostListener('window:resize')
   onResize(): void {
     this.ui.syncViewport();
+  }
+
+  private preloadSidebarStaffWorkspace(): void {
+    if (this.activeStaffWorkspaceId || !this.auth.hasPermission('staff:read')) {
+      return;
+    }
+
+    this.staffService.getAll({ page: 1, limit: 1, sort: 'createdAt' }).subscribe({
+      next: (response) => {
+        const firstStaff = response.data?.[0]?._id ?? null;
+        this.fallbackStaffWorkspaceId.set(firstStaff);
+      },
+      error: () => {
+        this.fallbackStaffWorkspaceId.set(null);
+      },
+    });
+  }
+
+  private isLeaveAdmin(): boolean {
+    return this.auth.hasRole('admin') || this.auth.hasPermission('leave:approve') || this.auth.hasPermission('leave:update');
+  }
+
+  private isTicketAdmin(): boolean {
+    return this.auth.hasRole('admin') || this.auth.hasPermission('ticket:update');
   }
 }

@@ -25,6 +25,12 @@ export class LeaveService {
     return this.http.get<ApiResponse<Leave>>(`${this.api}/leaves/${id}`);
   }
 
+  updateMyLeave(id: string, payload: LeavePayload): Observable<ApiResponse<Leave>> {
+    return this.http.put<ApiResponse<Leave>>(`${this.api}/leaves/${id}`, payload).pipe(
+      tap(() => showAppToast('success', 'Leave request updated successfully.'))
+    );
+  }
+
   deleteMyLeave(id: string): Observable<void> {
     return this.http.delete<void>(`${this.api}/leaves/${id}`).pipe(
       tap(() => showAppToast('success', 'Leave request cancelled successfully.'))
@@ -34,6 +40,10 @@ export class LeaveService {
   // Admin
   getAllLeaves(): Observable<ApiResponse<Leave[]>> {
     return this.http.get<ApiResponse<Leave[]>>(`${this.api}/admin/leaves`);
+  }
+
+  getAdminLeaveById(id: string): Observable<ApiResponse<Leave>> {
+    return this.http.get<ApiResponse<Leave>>(`${this.api}/admin/leaves/${id}`);
   }
 
   updateStatus(id: string, status: 'approved' | 'rejected', reviewNote?: string | null): Observable<ApiResponse<Leave>> {
@@ -66,6 +76,10 @@ export class RoleService {
       this._cache$ = request$.pipe(shareReplay(1));
     }
     return this._cache$;
+  }
+
+  getById(id: string): Observable<ApiResponse<Role>> {
+    return this.http.get<ApiResponse<Role>>(`${this.api}/admin/roles/${id}`);
   }
 
   create(payload: RolePayload): Observable<ApiResponse<Role>> {

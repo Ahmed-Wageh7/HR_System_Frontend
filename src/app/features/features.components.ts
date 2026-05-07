@@ -7,7 +7,8 @@ import { DepartmentService } from '../core/services/department.service';
 import { RoleService, AuditLogService, TicketService, UserService } from '../core/services/api.services';
 import { AuthService } from '../core/services/auth.service';
 import { AvatarViewService, AvatarViewSettings } from '../core/services/avatar-view.service';
-import { Department, Role, AuditLog, Ticket } from '../core/models';
+import { Department, Role, AuditLog, Ticket, Staff } from '../core/models';
+import { StaffService } from '../core/services/staff.service';
 import { HasPermissionDirective } from '../shared/directives/has-permission.directive';
 import { DateFormatPipe, TimeAgoPipe, CurrencyFormatPipe } from '../shared/pipes/pipes';
 import { ConfirmDialogComponent } from '../shared/components/confirm-dialog.component';
@@ -102,7 +103,7 @@ import { ConfirmDialogComponent } from '../shared/components/confirm-dialog.comp
     } @else {
       <div class="dept-grid">
         @for (d of (tab === 'active' ? active : archived); track d._id) {
-          <div class="dept-card" (click)="showDepartment(d._id)">
+          <div class="dept-card" [class.dept-card-archived]="!!d.deletedAt" (click)="showDepartment(d._id)">
             <div class="dept-card-header">
               <div class="dept-icon"><span class="material-icons" style="font-size:24px">corporate_fare</span></div>
               <div class="dept-actions">
@@ -168,6 +169,7 @@ import { ConfirmDialogComponent } from '../shared/components/confirm-dialog.comp
   styles: [`
     .dept-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
     .dept-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; transition: var(--transition); cursor: pointer; &:hover { border-color: var(--border-strong); } }
+    .dept-card-archived { opacity: 0.72; border-style: dashed; }
     .dept-card-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px; }
     .dept-icon { width: 52px; height: 52px; background: var(--accent-dim); color: var(--accent); border-radius: 14px; display: flex; align-items: center; justify-content: center; }
     .dept-actions { display: flex; gap: 4px; }
@@ -279,6 +281,7 @@ export class DeptListComponent implements OnInit {
     this.svc.delete(this.deleteTarget._id).subscribe(() => {
       this.confirmOpen = false;
       this.deleteTarget = null;
+      this.tab = 'archived';
       if (this.departments.length === 1 && this.page > 1) this.page -= 1;
       this.load();
     });
@@ -327,17 +330,25 @@ const ALL_PERMISSIONS = [
   imports: [CommonModule, FormsModule, ReactiveFormsModule, HasPermissionDirective, ConfirmDialogComponent],
   template: `
     <div class="page-header">
-      <div><div class="page-title">Roles & Permissions</div></div>
-      <button *hasPermission="'role:create'" class="btn btn-primary" (click)="openCreate()">
-        <span class="material-icons" style="font-size:18px">add</span> Create Role
-      </button>
+      <div>
+        <div class="page-title">Roles & Permissions</div>
+        <div class="page-subtitle">Create, edit, delete, inspect, and assign roles to users.</div>
+      </div>
+      <div class="page-actions">
+        <button *hasPermission="'role:update'" class="btn btn-secondary" (click)="openAssignModal()">
+          <span class="material-icons" style="font-size:18px">person_add</span> Assign Role
+        </button>
+        <button *hasPermission="'role:create'" class="btn btn-primary" (click)="openCreate()">
+          <span class="material-icons" style="font-size:18px">add</span> Create Role
+        </button>
+      </div>
     </div>
 
     @if (loading) {
       @for (i of [1,2,3]; track i) { <div class="skeleton" style="height:80px;margin-bottom:8px;border-radius:var(--radius)"></div> }
     } @else {
       @for (role of roles; track role._id) {
-        <div class="card mb-12">
+        <div class="card mb-12" style="cursor:pointer" (click)="showRole(role._id)">
           <div class="flex items-center justify-between mb-12">
             <div>
               <div class="fw-bold">{{ role.name }}
@@ -347,10 +358,13 @@ const ALL_PERMISSIONS = [
             </div>
             @if (!role.isSystem) {
               <div class="flex gap-8">
-                <button *hasPermission="'role:update'" class="btn btn-ghost btn-sm" (click)="openEdit(role)">
+                <button class="btn btn-ghost btn-sm" (click)="showRole(role._id); $event.stopPropagation()">
+                  <span class="material-icons" style="font-size:16px">visibility</span>
+                </button>
+                <button *hasPermission="'role:update'" class="btn btn-ghost btn-sm" (click)="openEdit(role); $event.stopPropagation()">
                   <span class="material-icons" style="font-size:16px">edit</span>
                 </button>
-                <button *hasPermission="'role:delete'" class="btn btn-danger btn-sm btn-icon" (click)="deleteRole(role._id)">
+                <button *hasPermission="'role:delete'" class="btn btn-danger btn-sm btn-icon" (click)="deleteRole(role._id); $event.stopPropagation()">
                   <span class="material-icons" style="font-size:16px">delete</span>
                 </button>
               </div>
@@ -449,6 +463,69 @@ const ALL_PERMISSIONS = [
       </div>
     }
 
+    @if (detailOpen && selectedRole) {
+      <div class="modal-backdrop" (click)="closeRoleDetail()">
+        <div class="modal" style="max-width:560px" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <div>
+              <div class="modal-title">{{ selectedRole.name }}</div>
+              <div class="text-secondary mt-4" style="font-size:13px">Role details</div>
+            </div>
+            <button class="btn btn-ghost btn-icon" (click)="closeRoleDetail()"><span class="material-icons">close</span></button>
+          </div>
+          <div class="info-grid">
+            <div class="info-item"><span class="info-label">Role</span><span>{{ selectedRole.name }}</span></div>
+            <div class="info-item"><span class="info-label">Description</span><span>{{ selectedRole.description || '—' }}</span></div>
+            <div class="info-item"><span class="info-label">Type</span><span>{{ selectedRole.isSystem ? 'System' : 'Custom' }}</span></div>
+            <div class="info-item"><span class="info-label">Permissions</span><span>{{ selectedRole.permissions.length }}</span></div>
+          </div>
+          <div class="perm-chips mt-16">
+            @for (p of selectedRole.permissions; track p) {
+              <span class="badge badge-info" style="font-size:10px">{{ p }}</span>
+            }
+          </div>
+        </div>
+      </div>
+    }
+
+    @if (assignOpen) {
+      <div class="modal-backdrop form-backdrop" (click)="assignOpen=false">
+        <div class="modal modal-form" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <div>
+              <div class="modal-title">Assign Role To User</div>
+              <div class="text-secondary mt-4" style="font-size:13px">Choose a staff member and assign one role.</div>
+            </div>
+            <button class="btn btn-ghost btn-icon" (click)="assignOpen=false"><span class="material-icons">close</span></button>
+          </div>
+          <div class="form-group">
+            <label>Staff Member</label>
+            <select class="form-control" [(ngModel)]="selectedUserId">
+              <option value="">Select staff member</option>
+              @for (member of assignableStaff; track member._id) {
+                <option [value]="member.user._id">{{ member.user.name }} - {{ member.user.email }}</option>
+              }
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Role</label>
+            <select class="form-control" [(ngModel)]="selectedRoleId">
+              <option value="">Select role</option>
+              @for (role of roles; track role._id) {
+                <option [value]="role._id">{{ role.name }}</option>
+              }
+            </select>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" (click)="assignOpen=false">Cancel</button>
+            <button type="button" class="btn btn-primary" [disabled]="!selectedUserId || !selectedRoleId || assigningRole" (click)="assignRole()">
+              @if (assigningRole) { <span class="spinner"></span> } Assign Role
+            </button>
+          </div>
+        </div>
+      </div>
+    }
+
     <app-confirm-dialog
       [open]="confirmOpen"
       title="Delete Role"
@@ -459,14 +536,16 @@ const ALL_PERMISSIONS = [
       (cancelled)="confirmOpen = false"
     />
   `,
-  styles: [`.perm-chips{display:flex;flex-wrap:wrap;gap:4px}`]
+  styles: [`.perm-chips{display:flex;flex-wrap:wrap;gap:4px}.info-grid{display:flex;flex-direction:column;gap:0}.info-item{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;font-size:13px;padding:10px 0;border-bottom:1px solid var(--border)}.info-item:last-child{border-bottom:none}.info-label{color:var(--text-secondary);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;flex-shrink:0}`]
 })
 export class RoleListComponent implements OnInit {
   private readonly svc = inject(RoleService);
   private readonly fb = inject(FormBuilder);
+  private readonly staffService = inject(StaffService);
 
   loading = true;
   roles: Role[] = [];
+  assignableStaff: Staff[] = [];
   page = 1;
   limit = 10;
   sort = '-createdAt';
@@ -476,6 +555,12 @@ export class RoleListComponent implements OnInit {
   editingRole: Role | null = null;
   confirmOpen = false;
   deleteTarget: Role | null = null;
+  detailOpen = false;
+  selectedRole: Role | null = null;
+  assignOpen = false;
+  selectedUserId = '';
+  selectedRoleId = '';
+  assigningRole = false;
   selectedPerms: string[] = [];
   allPerms = ALL_PERMISSIONS;
   allActions = ['create', 'read', 'update', 'delete', 'pay', 'adjust'];
@@ -495,7 +580,10 @@ export class RoleListComponent implements OnInit {
     return Array.from({ length: end - start + 1 }, (_, i) => start + i);
   }
 
-  ngOnInit(): void { this.load(); }
+  ngOnInit(): void {
+    this.load();
+    this.loadAssignableStaff();
+  }
   load(): void {
     this.loading = true;
     this.svc.getAll({ page: this.page, limit: this.limit, sort: this.sort }).subscribe({
@@ -510,6 +598,7 @@ export class RoleListComponent implements OnInit {
 
   openCreate(): void { this.editingRole = null; this.selectedPerms = []; this.roleForm.reset(); this.editOpen = true; }
   openEdit(r: Role): void { this.editingRole = r; this.selectedPerms = [...r.permissions]; this.roleForm.patchValue({ name: r.name, description: r.description ?? '' }); this.editOpen = true; }
+  openAssignModal(): void { this.assignOpen = true; }
 
   hasPermission(p: string): boolean { return this.selectedPerms.includes(p); }
   togglePerm(p: string): void {
@@ -554,6 +643,34 @@ export class RoleListComponent implements OnInit {
     this.confirmOpen = true;
   }
 
+  showRole(id: string): void {
+    this.svc.getById(id).subscribe({
+      next: res => {
+        this.selectedRole = res.data;
+        this.detailOpen = true;
+      }
+    });
+  }
+
+  closeRoleDetail(): void {
+    this.detailOpen = false;
+    this.selectedRole = null;
+  }
+
+  assignRole(): void {
+    if (!this.selectedUserId || !this.selectedRoleId) return;
+    this.assigningRole = true;
+    this.svc.assignRoleToUser(this.selectedUserId, this.selectedRoleId).subscribe({
+      next: () => {
+        this.assigningRole = false;
+        this.assignOpen = false;
+        this.selectedUserId = '';
+        this.selectedRoleId = '';
+      },
+      error: () => { this.assigningRole = false; }
+    });
+  }
+
   confirmDelete(): void {
     if (!this.deleteTarget) return;
     this.svc.delete(this.deleteTarget._id).subscribe(() => {
@@ -580,6 +697,17 @@ export class RoleListComponent implements OnInit {
       if (Array.isArray(candidate)) return candidate as Role[];
     }
     return [];
+  }
+
+  private loadAssignableStaff(): void {
+    this.staffService.getAll({ page: 1, limit: 500, sort: 'name' }).subscribe({
+      next: res => {
+        this.assignableStaff = res.data ?? [];
+      },
+      error: () => {
+        this.assignableStaff = [];
+      }
+    });
   }
 }
 
@@ -768,9 +896,11 @@ export class AuditListComponent implements OnInit {
   template: `
     <div class="page-header">
       <div><div class="page-title">Support Tickets</div></div>
+      @if (!isAdmin) {
       <a routerLink="/tickets/new" class="btn btn-primary">
         <span class="material-icons" style="font-size:18px">add</span> New Ticket
       </a>
+      }
     </div>
 
     <div class="card" style="padding:0">
@@ -822,11 +952,16 @@ export class AuditListComponent implements OnInit {
 })
 export class TicketListComponent implements OnInit {
   private readonly svc = inject(TicketService);
+  private readonly auth = inject(AuthService);
   loading = true;
   tickets: Ticket[] = [];
   page = 1;
   limit = 10;
   totalTickets = 0;
+
+  get isAdmin(): boolean {
+    return this.auth.hasRole('admin') || this.auth.hasPermission('ticket:update');
+  }
 
   get totalPages(): number {
     return Math.max(1, Math.ceil(this.totalTickets / this.limit));
@@ -1025,7 +1160,7 @@ export class TicketDetailComponent implements OnInit {
   statusMenuOpen = false;
 
   get canUpdateTicketStatus(): boolean {
-    return this.auth.hasPermission('ticket:update');
+    return this.auth.hasRole('admin') || this.auth.hasPermission('ticket:update');
   }
 
   ngOnInit(): void {

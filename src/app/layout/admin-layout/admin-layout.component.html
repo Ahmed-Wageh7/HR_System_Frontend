@@ -63,9 +63,73 @@
                 @for (subItem of staffSubnav; track subItem.route) {
                   <a
                     class="nested-nav-item"
-                    [class.active]="isNestedNavItemActive(subItem.route)"
+                    [class.active]="isNestedNavMatch(subItem)"
                     [class.disabled]="!subItem.route"
                     [routerLink]="subItem.route || null"
+                    (click)="handleNavClick()"
+                  >
+                    <span class="nested-nav-dot"></span>
+                    <span>{{ subItem.label }}</span>
+                  </a>
+                }
+              </div>
+            }
+
+            @if (item.route === '/attendance' && showAttendanceSubnav) {
+              <div class="nested-nav">
+                @for (subItem of attendanceSubnav; track subItem.route) {
+                  <a
+                    class="nested-nav-item"
+                    [class.active]="isNestedNavMatch(subItem)"
+                    [routerLink]="subItem.route"
+                    (click)="handleNavClick()"
+                  >
+                    <span class="nested-nav-dot"></span>
+                    <span>{{ subItem.label }}</span>
+                  </a>
+                }
+              </div>
+            }
+
+            @if (item.route === '/leaves' && showLeavesSubnav) {
+              <div class="nested-nav">
+                @for (subItem of leavesSubnav; track subItem.route) {
+                  <a
+                    class="nested-nav-item"
+                    [class.active]="isNestedNavMatch(subItem)"
+                    [routerLink]="subItem.route"
+                    (click)="handleNavClick()"
+                  >
+                    <span class="nested-nav-dot"></span>
+                    <span>{{ subItem.label }}</span>
+                  </a>
+                }
+              </div>
+            }
+
+            @if (item.route === '/roles' && showRolesSubnav) {
+              <div class="nested-nav">
+                @for (subItem of rolesSubnav; track subItem.route) {
+                  <a
+                    class="nested-nav-item"
+                    [class.active]="isNestedNavMatch(subItem)"
+                    [routerLink]="subItem.route"
+                    (click)="handleNavClick()"
+                  >
+                    <span class="nested-nav-dot"></span>
+                    <span>{{ subItem.label }}</span>
+                  </a>
+                }
+              </div>
+            }
+
+            @if (item.route === '/tickets' && showTicketsSubnav) {
+              <div class="nested-nav">
+                @for (subItem of ticketsSubnav; track subItem.route) {
+                  <a
+                    class="nested-nav-item"
+                    [class.active]="isNestedNavMatch(subItem)"
+                    [routerLink]="subItem.route"
                     (click)="handleNavClick()"
                   >
                     <span class="nested-nav-dot"></span>

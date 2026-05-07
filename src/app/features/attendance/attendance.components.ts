@@ -28,30 +28,25 @@ import { format } from 'date-fns';
           </div>
         }
 
-        @if (status) {
-          <div class="status-display" [class.checked-in]="status === 'in'" [class.checked-out]="status === 'out'">
-            <span class="material-icons status-icon">{{ status === 'in' ? 'work' : 'home' }}</span>
-            <div>{{ status === 'in' ? 'Currently Working' : 'Checked Out' }}</div>
-            @if (checkInTime) {
-              <div class="status-sub">{{ status === 'in' ? 'Since ' : 'Was in since ' }}{{ checkInTime | dateFormat:'HH:mm' }}</div>
-            }
+        @if (checkInTime) {
+          <div class="status-display checked-in">
+            <span class="material-icons status-icon">login</span>
+            <div>Last check-in recorded</div>
+            <div class="status-sub">{{ checkInTime | dateFormat:'HH:mm' }}</div>
           </div>
         }
 
         <button
           class="checkin-btn"
-          [class.checkout]="status === 'in'"
           [disabled]="loading"
-          (click)="toggle()"
+          (click)="checkIn()"
         >
           @if (loading) {
             <span class="spinner" style="width:24px;height:24px;border-width:3px"></span>
           } @else {
-            <span class="material-icons" style="font-size:32px">
-              {{ status === 'in' ? 'logout' : 'login' }}
-            </span>
+            <span class="material-icons" style="font-size:32px">login</span>
           }
-          <span>{{ status === 'in' ? 'Check Out' : 'Check In' }}</span>
+          <span>Check In</span>
         </button>
 
         @if (message) {
@@ -124,7 +119,6 @@ export class CheckinComponent implements OnInit, OnDestroy {
   currentTime = '';
   currentDate = '';
   isLate = false;
-  status: 'in' | 'out' | null = null;
   checkInTime: string | null = null;
   loading = false;
   message = '';
@@ -146,21 +140,140 @@ export class CheckinComponent implements OnInit, OnDestroy {
     this.isLate = now.getHours() >= 9;
   }
 
-  toggle(): void {
+  checkIn(): void {
     this.loading = true;
     this.message = '';
-    const call = this.status === 'in' ? this.svc.checkOut() : this.svc.checkIn();
-    call.subscribe({
+    this.svc.checkIn().subscribe({
       next: (res) => {
         this.loading = false;
-        if (this.status === 'in') {
-          this.status = 'out';
-          this.message = 'Checked out successfully!';
-        } else {
-          this.status = 'in';
-          this.checkInTime = (res.data as { checkIn?: string }).checkIn ?? new Date().toISOString();
-          this.message = 'Checked in successfully!';
+        this.checkInTime = (res.data as { checkIn?: string }).checkIn ?? new Date().toISOString();
+        this.message = 'Checked in successfully!';
+        this.error = false;
+      },
+      error: (err) => {
+        this.loading = false;
+        this.error = true;
+        this.message = err.error?.message || 'Action failed';
+      }
+    });
+  }
+}
+
+@Component({
+  selector: 'app-checkout',
+  standalone: true,
+  imports: [CommonModule, DateFormatPipe],
+  template: `
+    <div class="checkin-page">
+      <div class="checkin-card">
+        <div class="checkin-time">{{ currentTime }}</div>
+        <div class="checkin-date">{{ currentDate }}</div>
+
+        @if (checkOutTime) {
+          <div class="status-display checked-out">
+            <span class="material-icons status-icon">logout</span>
+            <div>Last check-out recorded</div>
+            <div class="status-sub">{{ checkOutTime | dateFormat:'HH:mm' }}</div>
+          </div>
         }
+
+        <button class="checkin-btn checkout" [disabled]="loading" (click)="checkOut()">
+          @if (loading) {
+            <span class="spinner" style="width:24px;height:24px;border-width:3px"></span>
+          } @else {
+            <span class="material-icons" style="font-size:32px">logout</span>
+          }
+          <span>Check Out</span>
+        </button>
+
+        @if (message) {
+          <div class="checkin-msg" [class.success]="!error" [class.error]="error">{{ message }}</div>
+        }
+      </div>
+    </div>
+  `,
+  styles: [`
+    .checkin-page {
+      display: flex; align-items: center; justify-content: center;
+      min-height: calc(100vh - var(--header-h) - 48px);
+    }
+    .checkin-card {
+      text-align: center;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 48px 40px;
+      width: 100%; max-width: 420px;
+    }
+    .checkin-time {
+      font-size: 56px; font-weight: 900; letter-spacing: -0.04em;
+      font-variant-numeric: tabular-nums;
+      background: linear-gradient(135deg, var(--text-primary), var(--danger));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .checkin-date { color: var(--text-secondary); font-size: 14px; margin-bottom: 32px; }
+    .status-display {
+      padding: 16px; border-radius: var(--radius); margin-bottom: 24px;
+      background: var(--bg-elevated); color: var(--text-secondary);
+    }
+    .status-icon { font-size: 28px; margin-bottom: 4px; }
+    .status-sub { font-size: 12px; opacity: 0.8; margin-top: 4px; }
+    .checkin-btn {
+      width: 100%; padding: 20px;
+      background: var(--danger); color: white;
+      border: none; border-radius: var(--radius);
+      font-family: var(--font-sans); font-size: 18px; font-weight: 700;
+      cursor: pointer; transition: var(--transition);
+      display: flex; align-items: center; justify-content: center; gap: 12px;
+    }
+    .checkin-btn:hover:not(:disabled) { box-shadow: 0 8px 24px rgba(239,68,68,0.3); filter: brightness(1.06); transform: translateY(-1px); }
+    .checkin-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+    .checkin-msg {
+      margin-top: 16px; padding: 10px 16px; border-radius: var(--radius-sm); font-size: 13px;
+    }
+    .checkin-msg.success { background: var(--success-dim); color: var(--success); }
+    .checkin-msg.error { background: var(--danger-dim); color: var(--danger); }
+    @media (max-width: 480px) {
+      .checkin-card { padding: 32px 20px; }
+      .checkin-time { font-size: 40px; }
+    }
+  `]
+})
+export class CheckoutComponent implements OnInit, OnDestroy {
+  private readonly svc = inject(AttendanceService);
+
+  currentTime = '';
+  currentDate = '';
+  checkOutTime: string | null = null;
+  loading = false;
+  message = '';
+  error = false;
+
+  private timer?: Subscription;
+
+  ngOnInit(): void {
+    this.tick();
+    this.timer = interval(1000).subscribe(() => this.tick());
+  }
+
+  ngOnDestroy(): void {
+    this.timer?.unsubscribe();
+  }
+
+  private tick(): void {
+    const now = new Date();
+    this.currentTime = format(now, 'HH:mm:ss');
+    this.currentDate = format(now, 'EEEE, MMMM d, yyyy');
+  }
+
+  checkOut(): void {
+    this.loading = true;
+    this.message = '';
+    this.svc.checkOut().subscribe({
+      next: (res) => {
+        this.loading = false;
+        this.checkOutTime = (res.data as { checkOut?: string }).checkOut ?? new Date().toISOString();
+        this.message = 'Checked out successfully!';
         this.error = false;
       },
       error: (err) => {
@@ -186,7 +299,11 @@ export class CheckinComponent implements OnInit, OnDestroy {
       <div class="page-actions">
         <a routerLink="/attendance/checkin" class="btn btn-primary">
           <span class="material-icons" style="font-size:18px">fingerprint</span>
-          Check In / Out
+          Check In
+        </a>
+        <a routerLink="/attendance/checkout" class="btn btn-secondary">
+          <span class="material-icons" style="font-size:18px">logout</span>
+          Check Out
         </a>
         <input type="date" class="form-control" style="width:180px" [(ngModel)]="selectedDate" (ngModelChange)="load()">
       </div>

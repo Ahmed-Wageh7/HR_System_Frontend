@@ -52,15 +52,29 @@ export class AuthService {
   hasPermission(permission: string): boolean {
     const user = this.currentUser();
     if (!user) return false;
-    const perms = user.permissions ?? [];
+    const perms = this.collectPermissions(user);
     return perms.includes(permission) || perms.includes("*");
   }
 
   hasRole(roleName: string): boolean {
     const user = this.currentUser();
     if (!user) return false;
-    if (typeof user.role === "string") return user.role === roleName;
-    return (user.role as { name: string }).name === roleName;
+    const normalizedRoleName = roleName.toLowerCase();
+    const roleNames = new Set<string>();
+
+    if (typeof user.role === "string") {
+      roleNames.add(user.role.toLowerCase());
+    } else if (user.role && typeof user.role === "object" && "name" in user.role) {
+      roleNames.add(String(user.role.name).toLowerCase());
+    }
+
+    for (const role of user.roles ?? []) {
+      if (role?.name) {
+        roleNames.add(role.name.toLowerCase());
+      }
+    }
+
+    return roleNames.has(normalizedRoleName);
   }
 
   login(credentials: { email: string; password: string }): Observable<void> {
@@ -238,6 +252,29 @@ export class AuthService {
       ...user,
       avatar: this.normalizeAvatar(user.avatar),
     };
+  }
+
+  private collectPermissions(user: User): string[] {
+    const permissions = new Set<string>(user.permissions ?? []);
+
+    const collectFromRole = (role: unknown): void => {
+      if (!role || typeof role !== 'object') return;
+      const candidate = role as { permissions?: unknown };
+      if (Array.isArray(candidate.permissions)) {
+        for (const permission of candidate.permissions) {
+          if (typeof permission === 'string') {
+            permissions.add(permission);
+          }
+        }
+      }
+    };
+
+    collectFromRole(user.role);
+    for (const role of user.roles ?? []) {
+      collectFromRole(role);
+    }
+
+    return Array.from(permissions);
   }
 
   private normalizeAvatar(avatar: unknown): string | null {

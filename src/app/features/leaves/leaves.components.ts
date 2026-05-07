@@ -2,6 +2,7 @@ import { Component, EventEmitter, Input, Output, forwardRef, inject, OnInit } fr
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { Router, RouterLink, ActivatedRoute } from '@angular/router';
+import { catchError, of } from 'rxjs';
 import { LeaveService } from '../../core/services/api.services';
 import { AuthService } from '../../core/services/auth.service';
 import { Leave } from '../../core/models';
@@ -23,10 +24,12 @@ import { showAppToast } from '../../core/utils/toast';
         <div class="page-subtitle">{{ isAdmin ? 'All leave requests' : 'Your leave requests' }}</div>
       </div>
       <div class="page-actions">
+        @if (!isAdmin) {
         <button type="button" class="btn btn-primary" (click)="openRequestModal()">
           <span class="material-icons" style="font-size:18px">add</span>
           Request Leave
         </button>
+        }
       </div>
     </div>
 
@@ -41,6 +44,27 @@ import { showAppToast } from '../../core/utils/toast';
             <button class="btn btn-ghost btn-icon" (click)="closeRequestModal()"><span class="material-icons">close</span></button>
           </div>
           <app-leave-form [embedded]="true" (saved)="handleLeaveCreated()" (cancelled)="closeRequestModal()" />
+        </div>
+      </div>
+    }
+
+    @if (editOpen && selectedLeave) {
+      <div class="modal-backdrop form-backdrop" (click)="closeEditModal()">
+        <div class="modal modal-form" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <div>
+              <div class="modal-title">Edit Leave Request</div>
+              <div class="text-secondary mt-4" style="font-size:13px">Update your pending leave request</div>
+            </div>
+            <button class="btn btn-ghost btn-icon" (click)="closeEditModal()"><span class="material-icons">close</span></button>
+          </div>
+          <app-leave-form
+            [embedded]="true"
+            [leaveId]="selectedLeave._id"
+            [initialLeave]="selectedLeave"
+            (saved)="handleLeaveUpdated()"
+            (cancelled)="closeEditModal()"
+          />
         </div>
       </div>
     }
@@ -111,6 +135,9 @@ import { showAppToast } from '../../core/utils/toast';
                       <span class="material-icons" style="font-size:16px">visibility</span>
                     </a>
                     @if (!isAdmin && leave.status === 'pending') {
+                      <button class="btn btn-ghost btn-sm btn-icon" (click)="openEditLeave(leave)">
+                        <span class="material-icons" style="font-size:16px">edit</span>
+                      </button>
                       <button class="btn btn-danger btn-sm btn-icon" (click)="openDeleteLeave(leave)">
                         <span class="material-icons" style="font-size:16px">delete</span>
                       </button>
@@ -145,8 +172,10 @@ export class LeaveListComponent implements OnInit {
   filterStatus = '';
   isAdmin = false;
   requestOpen = false;
+  editOpen = false;
   confirmOpen = false;
   deleteTarget: Leave | null = null;
+  selectedLeave: Leave | null = null;
 
   get deleteMessage(): string {
     if (!this.deleteTarget) return 'Cancel this leave request?';
@@ -154,7 +183,7 @@ export class LeaveListComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.isAdmin = this.auth.hasPermission('leave:read');
+    this.isAdmin = this.auth.hasRole('admin') || this.auth.hasPermission('leave:approve') || this.auth.hasPermission('leave:update');
     this.load();
   }
 
@@ -192,6 +221,22 @@ export class LeaveListComponent implements OnInit {
 
   handleLeaveCreated(): void {
     this.requestOpen = false;
+    this.load();
+  }
+
+  openEditLeave(leave: Leave): void {
+    this.selectedLeave = leave;
+    this.editOpen = true;
+  }
+
+  closeEditModal(): void {
+    this.editOpen = false;
+    this.selectedLeave = null;
+  }
+
+  handleLeaveUpdated(): void {
+    this.editOpen = false;
+    this.selectedLeave = null;
     this.load();
   }
 
@@ -300,8 +345,10 @@ export class LeaveListComponent implements OnInit {
     }
   `]
 })
-export class LeaveFormComponent {
+export class LeaveFormComponent implements OnInit {
   @Input() embedded = false;
+  @Input() leaveId: string | null = null;
+  @Input() initialLeave: Leave | null = null;
   @Output() saved = new EventEmitter<void>();
   @Output() cancelled = new EventEmitter<void>();
 
@@ -317,6 +364,15 @@ export class LeaveFormComponent {
     endDate: ['', Validators.required],
     reason: ['', [Validators.required, Validators.minLength(10)]],
   });
+
+  ngOnInit(): void {
+    if (!this.initialLeave) return;
+    this.form.patchValue({
+      startDate: this.initialLeave.startDate.slice(0, 10),
+      endDate: this.initialLeave.endDate.slice(0, 10),
+      reason: this.initialLeave.reason,
+    });
+  }
 
   get f() { return this.form.controls; }
 
@@ -336,7 +392,9 @@ export class LeaveFormComponent {
     }
     this.submitting = true;
     const val = this.form.getRawValue();
-    this.svc.submit({ reason: val.reason!, startDate: val.startDate!, endDate: val.endDate! }).subscribe({
+    const payload = { reason: val.reason!, startDate: val.startDate!, endDate: val.endDate! };
+    const request$ = this.leaveId ? this.svc.updateMyLeave(this.leaveId, payload) : this.svc.submit(payload);
+    request$.subscribe({
       next: () => {
         this.submitting = false;
         if (this.embedded) {
@@ -354,7 +412,7 @@ export class LeaveFormComponent {
 @Component({
   selector: 'app-leave-detail',
   standalone: true,
-  imports: [CommonModule, RouterLink, FormsModule, DateFormatPipe, HasPermissionDirective],
+  imports: [CommonModule, RouterLink, FormsModule, DateFormatPipe, HasPermissionDirective, forwardRef(() => LeaveFormComponent)],
   template: `
     @if (loading) {
       <div style="padding:40px;text-align:center"><div class="spinner" style="width:32px;height:32px;margin:0 auto"></div></div>
@@ -369,31 +427,39 @@ export class LeaveFormComponent {
             <div class="page-subtitle">{{ leave.startDate | dateFormat }} → {{ leave.endDate | dateFormat }}</div>
           </div>
         </div>
-        <div class="status-select">
-          <button class="btn btn-ghost btn-sm status-trigger" type="button" [disabled]="!isAdmin" (click)="toggleStatusMenu()">
-            <span class="badge"
-              [class.badge-warning]="leave.status === 'pending'"
-              [class.badge-success]="leave.status === 'approved'"
-              [class.badge-danger]="leave.status === 'rejected'"
-              style="padding:6px 14px;font-size:13px">{{ leave.status }}</span>
-            <span class="material-icons status-caret">keyboard_arrow_down</span>
-          </button>
-          @if (statusMenuOpen && isAdmin) {
-            <div class="status-menu">
-              <button class="status-menu-item" [class.active]="leave.status === 'pending'" (click)="setStatus('pending')">
-                <span>Pending</span>
-                @if (leave.status === 'pending') { <span class="material-icons">check</span> }
-              </button>
-              <button class="status-menu-item" [class.active]="leave.status === 'approved'" (click)="setStatus('approved')">
-                <span>Approved</span>
-                @if (leave.status === 'approved') { <span class="material-icons">check</span> }
-              </button>
-              <button class="status-menu-item" [class.active]="leave.status === 'rejected'" (click)="setStatus('rejected')">
-                <span>Rejected</span>
-                @if (leave.status === 'rejected') { <span class="material-icons">check</span> }
-              </button>
-            </div>
+        <div class="flex items-center gap-8">
+          @if (!isAdmin && leave.status === 'pending') {
+            <button class="btn btn-secondary" type="button" (click)="editOpen = true">
+              <span class="material-icons" style="font-size:16px">edit</span>
+              Edit
+            </button>
           }
+          <div class="status-select">
+            <button class="btn btn-ghost btn-sm status-trigger" type="button" [disabled]="!isAdmin" (click)="toggleStatusMenu()">
+              <span class="badge"
+                [class.badge-warning]="leave.status === 'pending'"
+                [class.badge-success]="leave.status === 'approved'"
+                [class.badge-danger]="leave.status === 'rejected'"
+                style="padding:6px 14px;font-size:13px">{{ leave.status }}</span>
+              <span class="material-icons status-caret">keyboard_arrow_down</span>
+            </button>
+            @if (statusMenuOpen && isAdmin) {
+              <div class="status-menu">
+                <button class="status-menu-item" [class.active]="leave.status === 'pending'" (click)="setStatus('pending')">
+                  <span>Pending</span>
+                  @if (leave.status === 'pending') { <span class="material-icons">check</span> }
+                </button>
+                <button class="status-menu-item" [class.active]="leave.status === 'approved'" (click)="setStatus('approved')">
+                  <span>Approved</span>
+                  @if (leave.status === 'approved') { <span class="material-icons">check</span> }
+                </button>
+                <button class="status-menu-item" [class.active]="leave.status === 'rejected'" (click)="setStatus('rejected')">
+                  <span>Rejected</span>
+                  @if (leave.status === 'rejected') { <span class="material-icons">check</span> }
+                </button>
+              </div>
+            }
+          </div>
         </div>
       </div>
 
@@ -411,7 +477,7 @@ export class LeaveFormComponent {
         </div>
 
         @if (leave.status === 'pending') {
-          <div *hasPermission="'leave:update'" class="card">
+          <div *hasPermission="'leave:approve'" class="card">
             <div class="fw-bold mb-12">Review Request</div>
             <div class="form-group">
               <label>Note (optional)</label>
@@ -428,6 +494,27 @@ export class LeaveFormComponent {
           </div>
         }
       </div>
+
+      @if (editOpen && leave && !isAdmin && leave.status === 'pending') {
+        <div class="modal-backdrop form-backdrop" (click)="editOpen = false">
+          <div class="modal modal-form" (click)="$event.stopPropagation()">
+            <div class="modal-header">
+              <div>
+                <div class="modal-title">Edit Leave Request</div>
+                <div class="text-secondary mt-4" style="font-size:13px">Update your pending leave request</div>
+              </div>
+              <button class="btn btn-ghost btn-icon" (click)="editOpen = false"><span class="material-icons">close</span></button>
+            </div>
+            <app-leave-form
+              [embedded]="true"
+              [leaveId]="leave._id"
+              [initialLeave]="leave"
+              (saved)="handleLeaveUpdated()"
+              (cancelled)="editOpen = false"
+            />
+          </div>
+        </div>
+      }
     }
   `,
   styles: [`.info-grid{display:flex;flex-direction:column;gap:0}.info-item{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;font-size:13px;padding:10px 0;border-bottom:1px solid var(--border)}.info-item:last-child{border-bottom:none}.info-label{color:var(--text-secondary);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;flex-shrink:0}`]
@@ -442,13 +529,23 @@ export class LeaveDetailComponent implements OnInit {
   reviewNote = '';
   isAdmin = false;
   statusMenuOpen = false;
+  editOpen = false;
 
   ngOnInit(): void {
-    this.isAdmin = this.auth.hasPermission('leave:update');
+    this.isAdmin = this.auth.hasRole('admin') || this.auth.hasPermission('leave:approve') || this.auth.hasPermission('leave:update');
     const id = this.route.snapshot.paramMap.get('id')!;
-    const call = this.isAdmin ? this.svc.getMyLeave(id) : this.svc.getMyLeave(id);
+    const call = this.isAdmin
+      ? this.svc.getAdminLeaveById(id).pipe(catchError(() => this.svc.getAllLeaves()))
+      : this.svc.getMyLeave(id);
     call.subscribe({
-      next: res => { this.leave = res.data; this.loading = false; },
+      next: res => {
+        if (Array.isArray(res.data)) {
+          this.leave = res.data.find(item => item._id === id) ?? null;
+        } else {
+          this.leave = res.data;
+        }
+        this.loading = false;
+      },
       error: () => { this.loading = false; }
     });
   }
@@ -481,5 +578,10 @@ export class LeaveDetailComponent implements OnInit {
       return;
     }
     this.review(status);
+  }
+
+  handleLeaveUpdated(): void {
+    this.editOpen = false;
+    this.ngOnInit();
   }
 }
