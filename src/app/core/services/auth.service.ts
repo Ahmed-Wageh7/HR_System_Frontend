@@ -64,7 +64,11 @@ export class AuthService {
 
     if (typeof user.role === "string") {
       roleNames.add(user.role.toLowerCase());
-    } else if (user.role && typeof user.role === "object" && "name" in user.role) {
+    } else if (
+      user.role &&
+      typeof user.role === "object" &&
+      "name" in user.role
+    ) {
       roleNames.add(String(user.role.name).toLowerCase());
     }
 
@@ -97,18 +101,8 @@ export class AuthService {
   }
 
   logout(): Observable<void> {
-    const refreshToken = this.getEffectiveRefreshToken();
-    if (!refreshToken) {
-      this.clearSession("/auth/login");
-      return of(void 0);
-    }
-
     return this.http
-      .post<void>(
-        `${this.api}/auth/logout`,
-        { refreshToken },
-        { withCredentials: true },
-      )
+      .post<void>(`${this.api}/auth/logout`, {}, { withCredentials: true })
       .pipe(
         catchError(() => of(void 0)),
         map(() => void 0),
@@ -120,11 +114,10 @@ export class AuthService {
   }
 
   refreshToken(): Observable<string> {
-    const refreshToken = this.getEffectiveRefreshToken();
     return this.http
       .post<AuthApiResponse>(
         `${this.api}/auth/refresh-token`,
-        refreshToken ? { refreshToken } : {},
+        {},
         { withCredentials: true },
       )
       .pipe(
@@ -180,12 +173,14 @@ export class AuthService {
   handleSessionExpired(): void {
     if (!this.sessionExpiredNotified) {
       this.sessionExpiredNotified = true;
-      window.dispatchEvent(new CustomEvent('app:toast', {
-        detail: {
-          type: 'error',
-          message: 'Session expired. Please log in again.'
-        }
-      }));
+      window.dispatchEvent(
+        new CustomEvent("app:toast", {
+          detail: {
+            type: "error",
+            message: "Session expired. Please log in again.",
+          },
+        }),
+      );
     }
     this.clearSession("/auth/login");
   }
@@ -196,12 +191,13 @@ export class AuthService {
   }
 
   private extractAuthResponse(response: AuthApiResponse): AuthResponse {
-    const data = (response.data as AuthResponse & {
-      tokens?: {
-        accessToken?: string;
-        refreshToken?: string;
-      };
-    }) ?? {};
+    const data =
+      (response.data as AuthResponse & {
+        tokens?: {
+          accessToken?: string;
+          refreshToken?: string;
+        };
+      }) ?? {};
     const accessToken =
       data.accessToken ||
       data.tokens?.accessToken ||
@@ -258,11 +254,11 @@ export class AuthService {
     const permissions = new Set<string>(user.permissions ?? []);
 
     const collectFromRole = (role: unknown): void => {
-      if (!role || typeof role !== 'object') return;
+      if (!role || typeof role !== "object") return;
       const candidate = role as { permissions?: unknown };
       if (Array.isArray(candidate.permissions)) {
         for (const permission of candidate.permissions) {
-          if (typeof permission === 'string') {
+          if (typeof permission === "string") {
             permissions.add(permission);
           }
         }
