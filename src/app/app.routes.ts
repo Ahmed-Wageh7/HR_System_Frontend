@@ -52,6 +52,29 @@ export const appRoutes: Routes = [
         title: 'Salary Overview',
         loadComponent: () => import('./features/salary/salary-overview.component').then(m => m.SalaryOverviewComponent),
       },
+
+      // Reports
+      {
+        path: 'reports/payroll',
+        title: 'Payroll Report',
+        loadComponent: () => import('./features/features.components').then(m => m.PayrollReportComponent),
+      },
+      {
+        path: 'reports/attendance',
+        title: 'Attendance Report',
+        loadComponent: () => import('./features/features.components').then(m => m.AttendanceReportComponent),
+      },
+      {
+        path: 'reports/staff-history',
+        title: 'Staff History Report',
+        loadComponent: () => import('./features/features.components').then(m => m.StaffHistoryReportComponent),
+      },
+      {
+        path: 'reports',
+        pathMatch: 'full',
+        redirectTo: 'reports/payroll',
+      },
+
       // Leaves
       {
         path: 'leaves',

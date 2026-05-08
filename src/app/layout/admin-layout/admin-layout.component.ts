@@ -50,6 +50,7 @@ export class AdminLayoutComponent implements OnInit {
     { label: 'Staff', icon: 'people', route: '/staff' },
     { label: 'Attendance', icon: 'schedule', route: '/attendance' },
     { label: 'Salary', icon: 'payments', route: '/salary' },
+    { label: 'Reports', icon: 'analytics', route: '/reports' },
     { label: 'Leaves', icon: 'beach_access', route: '/leaves' },
     { label: 'Departments', icon: 'corporate_fare', route: '/departments' },
     { label: 'Roles', icon: 'admin_panel_settings', route: '/roles' },
@@ -78,8 +79,8 @@ export class AdminLayoutComponent implements OnInit {
     return this.router.url.split('?')[0].startsWith('/leaves');
   }
 
-  get showRolesSubnav(): boolean {
-    return this.router.url.split('?')[0].startsWith('/roles');
+  get showReportsSubnav(): boolean {
+    return this.router.url.split('?')[0].startsWith('/reports');
   }
 
   get showTicketsSubnav(): boolean {
@@ -114,9 +115,11 @@ export class AdminLayoutComponent implements OnInit {
     return items;
   }
 
-  get rolesSubnav(): NestedNavItem[] {
+  get reportsSubnav(): NestedNavItem[] {
     return [
-      { label: 'All Roles', route: '/roles', startsWith: true },
+      { label: 'Payroll Report', route: '/reports/payroll' },
+      { label: 'Attendance Report', route: '/reports/attendance' },
+      { label: 'Staff History Report', route: '/reports/staff-history' },
     ];
   }
 
@@ -196,7 +199,7 @@ export class AdminLayoutComponent implements OnInit {
   }
 
   hasNestedNav(route: string): boolean {
-    return ['/staff', '/attendance', '/leaves', '/roles', '/tickets'].includes(route);
+    return ['/staff', '/attendance', '/reports', '/leaves', '/tickets'].includes(route);
   }
 
   isNestedNavOpen(route: string): boolean {
@@ -205,10 +208,10 @@ export class AdminLayoutComponent implements OnInit {
         return this.showStaffSubnav;
       case '/attendance':
         return this.showAttendanceSubnav;
+      case '/reports':
+        return this.showReportsSubnav;
       case '/leaves':
         return this.showLeavesSubnav;
-      case '/roles':
-        return this.showRolesSubnav;
       case '/tickets':
         return this.showTicketsSubnav;
       default:

@@ -8,7 +8,7 @@ import { CurrencyFormatPipe, DateFormatPipe } from '../../shared/pipes/pipes';
 import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog.component';
 import { format } from 'date-fns';
 import { RouterLink } from '@angular/router';
-import { PayrollReport, SalaryRecord } from '../../core/models';
+import { PayrollReport, PayrollReportRecord } from '../../core/models';
 
 @Component({
   selector: 'app-salary-overview',
@@ -74,18 +74,18 @@ import { PayrollReport, SalaryRecord } from '../../core/models';
             </tr>
           </thead>
           <tbody>
-            @for (r of records; track r._id || r.staff) {
+            @for (r of records; track r.staffId) {
               <tr>
                 <td>
                   <div class="fw-semibold" style="font-size:13px">{{ getStaffName(r) }}</div>
                 </td>
-                <td>{{ r.baseSalary | currencyFormat }}</td>
+                <td>{{ getBaseSalary(r) | currencyFormat }}</td>
                 <td class="text-danger">
-                  -{{ ((r.lateDeductions ?? 0) + (r.absentDeductions ?? 0) + (r.manualDeductions ?? 0)) | currencyFormat }}
+                  -{{ getDeductions(r) | currencyFormat }}
                 </td>
-                <td class="fw-bold text-accent">{{ r.finalSalary | currencyFormat }}</td>
+                <td class="fw-bold text-accent">{{ getFinalSalary(r) | currencyFormat }}</td>
                 <td>
-                  @if (r.isPaid) {
+                  @if (isPaid(r)) {
                     <span class="badge badge-success">Paid</span>
                   } @else {
                     <span class="badge badge-warning">Unpaid</span>
@@ -122,7 +122,7 @@ export class SalaryOverviewComponent implements OnInit {
   loading = true;
   selectedMonth = format(new Date(), 'yyyy-MM');
   report: PayrollReport | null = null;
-  records: SalaryRecord[] = [];
+  records: PayrollReportRecord[] = [];
   bulkConfirmOpen = false;
 
   ngOnInit(): void { this.load(); }
@@ -131,8 +131,8 @@ export class SalaryOverviewComponent implements OnInit {
     this.loading = true;
     this.reportService.getPayroll(this.selectedMonth).subscribe({
       next: (res) => {
-        this.report = res.data;
-        this.records = res.data.records ?? [];
+        this.records = Array.isArray(res.data) ? res.data : [];
+        this.report = this.buildPayrollSummary(this.records);
         this.loading = false;
       },
       error: () => { this.loading = false; }
@@ -146,13 +146,40 @@ export class SalaryOverviewComponent implements OnInit {
     });
   }
 
-  getStaffName(r: { staff: unknown }): string {
-    const s = r.staff as { user?: { name?: string }; name?: string } | null;
-    return s?.user?.name ?? s?.name ?? '—';
+  getStaffName(r: PayrollReportRecord): string {
+    return r.name ?? '—';
   }
 
-  getStaffId(r: { staff: unknown }): string {
-    const s = r.staff as { _id?: string } | string | null;
-    return typeof s === 'string' ? s : s?._id ?? '';
+  getStaffId(r: PayrollReportRecord): string {
+    return r.staffId ?? '';
+  }
+
+  getBaseSalary(r: PayrollReportRecord): number {
+    return (r.salary?.finalSalary ?? 0) + (r.salary?.totalDeductions ?? 0) - (r.salary?.adjustments ?? 0);
+  }
+
+  getDeductions(r: PayrollReportRecord): number {
+    return r.salary?.totalDeductions ?? 0;
+  }
+
+  getFinalSalary(r: PayrollReportRecord): number {
+    return r.salary?.finalSalary ?? 0;
+  }
+
+  isPaid(r: PayrollReportRecord): boolean {
+    return !!r.salary?.isPaid;
+  }
+
+  private buildPayrollSummary(records: PayrollReportRecord[]): PayrollReport {
+    const totalPaid = records.filter(record => record.salary?.isPaid).length;
+    const totalPayroll = records.reduce((sum, record) => sum + (record.salary?.finalSalary ?? 0), 0);
+    return {
+      month: this.selectedMonth,
+      totalStaff: records.length,
+      totalPaid,
+      totalUnpaid: records.length - totalPaid,
+      totalPayroll,
+      records,
+    };
   }
 }

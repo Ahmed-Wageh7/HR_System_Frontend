@@ -953,4 +953,3 @@ Possible fail responses:
 - `GET /admin/staff/:id/salary/:month` now returns stored paid data with `isPaid: true` when that month was already paid.
 - `POST /admin/staff/salary/:month/bulk-pay` returns `202` because it is queued background work.
 - Upload endpoints need `multipart/form-data`.
-

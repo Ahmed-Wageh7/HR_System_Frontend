@@ -1,8 +1,8 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, shareReplay, tap } from 'rxjs';
+import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
+import { Observable, catchError, shareReplay, tap, throwError } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { ApiResponse, Leave, LeavePayload, Role, RoleDeleteResult, RolePayload, RoleQuery, Ticket, TicketQuery, TicketReply, TicketStatusPayload, AuditLog, PayrollReport, AttendanceReport, AttendanceRecord, User } from '../models';
+import { ApiResponse, Leave, LeavePayload, Role, RoleDeleteResult, RolePayload, RoleQuery, Ticket, TicketQuery, TicketReply, TicketStatusPayload, AuditLog, PayrollReport, PayrollReportRecord, AttendanceRecord, User } from '../models';
 import { showAppToast } from '../utils/toast';
 
 // ── Leave Service ──────────────────────────────────────────
@@ -114,7 +114,9 @@ export class RoleService {
   }
 
   assignRoleToUser(userId: string, roleId: string): Observable<void> {
-    return this.http.post<void>(`${this.api}/admin/roles/users/${userId}/roles`, { roleId });
+    return this.http.post<void>(`${this.api}/admin/roles/users/${userId}/roles`, { roleId }).pipe(
+      tap(() => showAppToast('success', 'Role assigned successfully.'))
+    );
   }
 
   private normalizeSort(sort: string): string {
@@ -190,17 +192,39 @@ export class AuditLogService {
 export class ReportService {
   private readonly http = inject(HttpClient);
   private readonly api = environment.apiUrl;
+  private readonly fallbackApi = this.api.replace(/\/api\/v\d+$/, '/api');
 
-  getPayroll(month: string): Observable<ApiResponse<PayrollReport>> {
-    return this.http.get<ApiResponse<PayrollReport>>(`${this.api}/admin/reports/payroll/${month}`);
+  getPayrollReport(): Observable<ApiResponse<PayrollReport>> {
+    return this.requestWithVersionFallback<PayrollReport>('/admin/reports/payroll');
   }
 
-  getAttendance(month: string): Observable<ApiResponse<AttendanceReport>> {
-    return this.http.get<ApiResponse<AttendanceReport>>(`${this.api}/admin/reports/attendance/${month}`);
+  getPayroll(month: string): Observable<ApiResponse<PayrollReportRecord[]>> {
+    return this.requestWithVersionFallback<PayrollReportRecord[]>(`/admin/reports/payroll/${month}`);
+  }
+
+  getAttendance(month: string): Observable<ApiResponse<AttendanceRecord[]>> {
+    return this.requestWithVersionFallback<AttendanceRecord[]>(`/admin/reports/attendance/${month}`);
   }
 
   getStaffHistory(id: string): Observable<ApiResponse<unknown>> {
-    return this.http.get<ApiResponse<unknown>>(`${this.api}/admin/reports/staff/${id}/history`);
+    return this.requestWithVersionFallback<unknown>(`/admin/reports/staff/${id}/history`);
+  }
+
+  private requestWithVersionFallback<T>(path: string): Observable<ApiResponse<T>> {
+    return this.http.get<ApiResponse<T>>(`${this.api}${path}`).pipe(
+      catchError((err: HttpErrorResponse) => {
+        if (!this.shouldFallback(err)) {
+          return throwError(() => err);
+        }
+        return this.http.get<ApiResponse<T>>(`${this.fallbackApi}${path}`);
+      })
+    );
+  }
+
+  private shouldFallback(err: HttpErrorResponse): boolean {
+    if (this.fallbackApi === this.api) return false;
+    const message = String(err.error?.message ?? '');
+    return err.status === 404 || message.includes('API version v1 does not exist');
   }
 }
 

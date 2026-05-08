@@ -316,17 +316,40 @@ export interface Notification {
 // ============================================================
 // Report Models
 // ============================================================
+export interface PayrollReportRecord {
+  staffId: string;
+  employeeCode?: string;
+  name: string;
+  department?: string | null;
+  salary: {
+    totalDaysWorked?: number;
+    lateDays?: number;
+    absentDays?: number;
+    totalDeductions?: number;
+    adjustments?: number;
+    finalSalary?: number;
+    isPaid?: boolean;
+  };
+}
+
 export interface PayrollReport {
   month: string;
   totalStaff: number;
   totalPaid: number;
   totalUnpaid: number;
   totalPayroll: number;
-  records: SalaryRecord[];
+  records: PayrollReportRecord[];
+}
+
+export interface AttendanceReportSummary {
+  totalDays: number;
+  lateDays: number;
+  absentDays: number;
+  hoursWorked: number;
 }
 
 export interface AttendanceReport {
   month: string;
-  summary: AttendanceSummary;
+  summary: AttendanceReportSummary;
   records: AttendanceRecord[];
 }

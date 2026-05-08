@@ -111,9 +111,9 @@
               </div>
             }
 
-            @if (item.route === '/roles' && showRolesSubnav) {
+            @if (item.route === '/reports' && showReportsSubnav) {
               <div class="nested-nav">
-                @for (subItem of rolesSubnav; track subItem.route) {
+                @for (subItem of reportsSubnav; track subItem.route) {
                   <a
                     class="nested-nav-item"
                     [class.active]="isNestedNavMatch(subItem)"

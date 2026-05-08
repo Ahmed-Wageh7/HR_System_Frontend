@@ -4,15 +4,16 @@ import { ReactiveFormsModule, FormBuilder, Validators, FormsModule } from '@angu
 import { RouterLink, ActivatedRoute, Router } from '@angular/router';
 import { forkJoin, of, switchMap } from 'rxjs';
 import { DepartmentService } from '../core/services/department.service';
-import { RoleService, AuditLogService, TicketService, UserService } from '../core/services/api.services';
+import { RoleService, AuditLogService, TicketService, UserService, ReportService } from '../core/services/api.services';
 import { AuthService } from '../core/services/auth.service';
 import { AvatarViewService, AvatarViewSettings } from '../core/services/avatar-view.service';
-import { Department, Role, AuditLog, Ticket, Staff } from '../core/models';
+import { Department, Role, AuditLog, Ticket, Staff, PayrollReport, PayrollReportRecord, AttendanceReport, AttendanceRecord, SalaryRecord } from '../core/models';
 import { StaffService } from '../core/services/staff.service';
 import { showAppToast } from '../core/utils/toast';
 import { HasPermissionDirective } from '../shared/directives/has-permission.directive';
 import { DateFormatPipe, TimeAgoPipe, CurrencyFormatPipe } from '../shared/pipes/pipes';
 import { ConfirmDialogComponent } from '../shared/components/confirm-dialog.component';
+import { format } from 'date-fns';
 
 // ============================================================
 // DEPARTMENTS
@@ -336,10 +337,10 @@ const ALL_PERMISSIONS = [
         <div class="page-subtitle">Create, edit, delete, inspect, and assign roles to users.</div>
       </div>
       <div class="page-actions">
-        <button *hasPermission="'role:update'" class="btn btn-secondary" (click)="openAssignModal()">
+        <button class="btn btn-secondary" (click)="openAssignModal()">
           <span class="material-icons" style="font-size:18px">person_add</span> Assign Role
         </button>
-        <button *hasPermission="'role:create'" class="btn btn-primary" (click)="openCreate()">
+        <button class="btn btn-primary" (click)="openCreate()">
           <span class="material-icons" style="font-size:18px">add</span> Create Role
         </button>
       </div>
@@ -349,7 +350,7 @@ const ALL_PERMISSIONS = [
       @for (i of [1,2,3]; track i) { <div class="skeleton" style="height:80px;margin-bottom:8px;border-radius:var(--radius)"></div> }
     } @else {
       @for (role of roles; track role._id) {
-        <div class="card mb-12" style="cursor:pointer" (click)="showRole(role._id)">
+        <div class="card mb-12" style="cursor:pointer" (click)="showRole(role)">
           <div class="flex items-center justify-between mb-12">
             <div>
               <div class="fw-bold">{{ role.name }}
@@ -357,19 +358,27 @@ const ALL_PERMISSIONS = [
               </div>
               @if (role.description) { <div class="text-muted" style="font-size:12px">{{ role.description }}</div> }
             </div>
-            @if (!role.isSystem) {
-              <div class="flex gap-8">
-                <button class="btn btn-ghost btn-sm" (click)="showRole(role._id); $event.stopPropagation()">
-                  <span class="material-icons" style="font-size:16px">visibility</span>
-                </button>
-                <button *hasPermission="'role:update'" class="btn btn-ghost btn-sm" (click)="openEdit(role); $event.stopPropagation()">
-                  <span class="material-icons" style="font-size:16px">edit</span>
-                </button>
-                <button *hasPermission="'role:delete'" class="btn btn-danger btn-sm btn-icon" (click)="deleteRole(role._id); $event.stopPropagation()">
-                  <span class="material-icons" style="font-size:16px">delete</span>
-                </button>
-              </div>
-            }
+            <div class="flex gap-8">
+              <button class="btn btn-ghost btn-sm" (click)="showRole(role); $event.stopPropagation()">
+                <span class="material-icons" style="font-size:16px">visibility</span>
+              </button>
+              <button
+                class="btn btn-ghost btn-sm"
+                [disabled]="role.isSystem"
+                [title]="role.isSystem ? 'System roles cannot be edited here.' : 'Edit role'"
+                (click)="openEdit(role); $event.stopPropagation()"
+              >
+                <span class="material-icons" style="font-size:16px">edit</span>
+              </button>
+              <button
+                class="btn btn-danger btn-sm btn-icon"
+                [disabled]="role.isSystem"
+                [title]="role.isSystem ? 'System roles cannot be deleted.' : 'Delete role'"
+                (click)="deleteRole(role._id); $event.stopPropagation()"
+              >
+                <span class="material-icons" style="font-size:16px">delete</span>
+              </button>
+            </div>
           </div>
           <div class="perm-chips">
             @for (p of role.permissions; track p) {
@@ -598,7 +607,16 @@ export class RoleListComponent implements OnInit {
   }
 
   openCreate(): void { this.editingRole = null; this.selectedPerms = []; this.roleForm.reset(); this.editOpen = true; }
-  openEdit(r: Role): void { this.editingRole = r; this.selectedPerms = [...r.permissions]; this.roleForm.patchValue({ name: r.name, description: r.description ?? '' }); this.editOpen = true; }
+  openEdit(r: Role): void {
+    if (r.isSystem) {
+      showAppToast('warning', 'System roles cannot be edited here.');
+      return;
+    }
+    this.editingRole = r;
+    this.selectedPerms = [...r.permissions];
+    this.roleForm.patchValue({ name: r.name, description: r.description ?? '' });
+    this.editOpen = true;
+  }
   openAssignModal(): void { this.assignOpen = true; }
 
   hasPermission(p: string): boolean { return this.selectedPerms.includes(p); }
@@ -640,17 +658,18 @@ export class RoleListComponent implements OnInit {
   }
 
   deleteRole(id: string): void {
-    this.deleteTarget = this.roles.find(role => role._id === id) ?? null;
+    const target = this.roles.find(role => role._id === id) ?? null;
+    if (target?.isSystem) {
+      showAppToast('warning', 'System roles cannot be deleted.');
+      return;
+    }
+    this.deleteTarget = target;
     this.confirmOpen = true;
   }
 
-  showRole(id: string): void {
-    this.svc.getById(id).subscribe({
-      next: res => {
-        this.selectedRole = res.data;
-        this.detailOpen = true;
-      }
-    });
+  showRole(role: Role): void {
+    this.selectedRole = role;
+    this.detailOpen = true;
   }
 
   closeRoleDetail(): void {
@@ -667,6 +686,7 @@ export class RoleListComponent implements OnInit {
         this.assignOpen = false;
         this.selectedUserId = '';
         this.selectedRoleId = '';
+        this.load();
       },
       error: () => { this.assigningRole = false; }
     });
@@ -1210,6 +1230,494 @@ export class TicketDetailComponent implements OnInit {
 
   getReplyUser(r: { user?: { name?: string } | string }): string {
     return typeof r.user === 'object' ? r.user?.name ?? '—' : '—';
+  }
+}
+
+// ============================================================
+// REPORTS
+// ============================================================
+@Component({
+  selector: 'app-payroll-report',
+  standalone: true,
+  imports: [CommonModule, CurrencyFormatPipe, FormsModule, RouterLink],
+  template: `
+    <div class="page-header">
+      <div>
+        <div class="page-title">Payroll Report</div>
+        <div class="page-subtitle">Monthly payroll summary from the reports API.</div>
+      </div>
+      <div class="page-actions">
+        <input type="month" class="form-control" style="width:180px" [(ngModel)]="selectedMonth" (ngModelChange)="load()">
+      </div>
+    </div>
+
+    @if (loading) {
+      <div class="card">
+        @for (i of [1,2,3,4]; track i) {
+          <div class="skeleton" style="height:56px;margin-bottom:8px;border-radius:var(--radius-sm)"></div>
+        }
+      </div>
+    } @else {
+      <div class="stats-grid mb-16">
+        <div class="stat-card stat-info">
+          <div class="stat-label">Month</div>
+          <div class="stat-value" style="font-size:20px">{{ report?.month || selectedMonth }}</div>
+          <div class="stat-icon"><span class="material-icons">calendar_month</span></div>
+        </div>
+        <div class="stat-card stat-success">
+          <div class="stat-label">Total Payroll</div>
+          <div class="stat-value" style="font-size:20px">{{ report?.totalPayroll | currencyFormat }}</div>
+          <div class="stat-icon"><span class="material-icons">account_balance_wallet</span></div>
+        </div>
+        <div class="stat-card stat-warning">
+          <div class="stat-label">Staff</div>
+          <div class="stat-value">{{ report?.totalStaff ?? 0 }}</div>
+          <div class="stat-icon"><span class="material-icons">groups</span></div>
+        </div>
+        <div class="stat-card stat-danger">
+          <div class="stat-label">Unpaid</div>
+          <div class="stat-value">{{ report?.totalUnpaid ?? 0 }}</div>
+          <div class="stat-icon"><span class="material-icons">pending_actions</span></div>
+        </div>
+      </div>
+
+      <div class="card" style="padding:0">
+        @if (records.length === 0) {
+          <div class="empty-state">
+            <span class="material-icons empty-icon">payments</span>
+            <div class="empty-title">No payroll records found</div>
+          </div>
+        } @else {
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Employee</th>
+                <th>Month</th>
+                <th>Final Salary</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (record of records; track getStaffId(record)) {
+                <tr>
+                  <td>{{ getStaffName(record) }}</td>
+                  <td>{{ report?.month || selectedMonth }}</td>
+                  <td>{{ getFinalSalary(record) | currencyFormat }}</td>
+                  <td>
+                    @if (isPaid(record)) {
+                      <span class="badge badge-success">Paid</span>
+                    } @else {
+                      <span class="badge badge-warning">Unpaid</span>
+                    }
+                  </td>
+                  <td>
+                    @if (getStaffId(record)) {
+                      <a class="btn btn-ghost btn-sm" [routerLink]="['/staff', getStaffId(record), 'salary']">
+                        <span class="material-icons" style="font-size:16px">visibility</span>
+                      </a>
+                    } @else {
+                      <span class="text-muted">—</span>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+      </div>
+    }
+  `,
+  styles: [`.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}@media(max-width:900px){.stats-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:600px){.stats-grid{grid-template-columns:1fr}}`]
+})
+export class PayrollReportComponent implements OnInit {
+  private readonly reportService = inject(ReportService);
+
+  loading = true;
+  selectedMonth = format(new Date(), 'yyyy-MM');
+  report: PayrollReport | null = null;
+  records: PayrollReportRecord[] = [];
+
+  ngOnInit(): void {
+    this.load();
+  }
+
+  load(): void {
+    this.loading = true;
+    this.reportService.getPayroll(this.selectedMonth).subscribe({
+      next: (res) => {
+        this.records = Array.isArray(res.data) ? res.data : [];
+        this.report = this.buildPayrollSummary(this.records);
+        this.loading = false;
+      },
+      error: () => {
+        this.report = null;
+        this.records = [];
+        this.loading = false;
+      }
+    });
+  }
+
+  getStaffName(record: PayrollReportRecord): string {
+    return record.name || '—';
+  }
+
+  getStaffId(record: PayrollReportRecord): string {
+    return record.staffId ?? '';
+  }
+
+  getFinalSalary(record: PayrollReportRecord): number {
+    return record.salary?.finalSalary ?? 0;
+  }
+
+  isPaid(record: PayrollReportRecord): boolean {
+    return !!record.salary?.isPaid;
+  }
+
+  private buildPayrollSummary(records: PayrollReportRecord[]): PayrollReport {
+    const totalPaid = records.filter(record => record.salary?.isPaid).length;
+    const totalPayroll = records.reduce((sum, record) => sum + (record.salary?.finalSalary ?? 0), 0);
+    return {
+      month: this.selectedMonth,
+      totalStaff: records.length,
+      totalPaid,
+      totalUnpaid: records.length - totalPaid,
+      totalPayroll,
+      records,
+    };
+  }
+}
+
+@Component({
+  selector: 'app-attendance-report',
+  standalone: true,
+  imports: [CommonModule, FormsModule, DateFormatPipe],
+  template: `
+    <div class="page-header">
+      <div>
+        <div class="page-title">Attendance Report</div>
+        <div class="page-subtitle">Monthly attendance summary from the admin reports API.</div>
+      </div>
+      <div class="page-actions">
+        <input type="month" class="form-control" style="width:180px" [(ngModel)]="selectedMonth" (ngModelChange)="load()">
+      </div>
+    </div>
+
+    @if (!loading) {
+      <div class="stats-grid mb-16">
+        <div class="stat-card stat-info">
+          <div class="stat-label">Month</div>
+          <div class="stat-value" style="font-size:20px">{{ report?.month || selectedMonth }}</div>
+          <div class="stat-icon"><span class="material-icons">calendar_month</span></div>
+        </div>
+        <div class="stat-card stat-success">
+          <div class="stat-label">Present Days</div>
+          <div class="stat-value">{{ report?.summary?.totalDays ?? 0 }}</div>
+          <div class="stat-icon"><span class="material-icons">fact_check</span></div>
+        </div>
+        <div class="stat-card stat-warning">
+          <div class="stat-label">Late Days</div>
+          <div class="stat-value">{{ report?.summary?.lateDays ?? 0 }}</div>
+          <div class="stat-icon"><span class="material-icons">schedule</span></div>
+        </div>
+        <div class="stat-card stat-danger">
+          <div class="stat-label">Absent Days</div>
+          <div class="stat-value">{{ report?.summary?.absentDays ?? 0 }}</div>
+          <div class="stat-icon"><span class="material-icons">person_off</span></div>
+        </div>
+      </div>
+    }
+
+    <div class="card" style="padding:0">
+      @if (loading) {
+        <div style="padding:20px">
+          @for (i of [1,2,3,4,5]; track i) {
+            <div class="skeleton" style="height:50px;margin-bottom:8px;border-radius:var(--radius-sm)"></div>
+          }
+        </div>
+      } @else if (records.length === 0) {
+        <div class="empty-state">
+          <span class="material-icons empty-icon">event_busy</span>
+          <div class="empty-title">No attendance report records for this month</div>
+        </div>
+      } @else {
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Employee</th>
+              <th>Date</th>
+              <th>Check In</th>
+              <th>Check Out</th>
+              <th>Working Hours</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (record of records; track record._id) {
+              <tr>
+                <td>{{ getAttendanceStaffName(record.staff) }}</td>
+                <td>{{ record.date | dateFormat:'MMM d, yyyy' }}</td>
+                <td>{{ record.checkIn | dateFormat:'p' }}</td>
+                <td>{{ record.checkOut | dateFormat:'p' }}</td>
+                <td>{{ record.workingHours ?? record.workHours ?? 0 }}</td>
+                <td>
+                  @if (record.isAbsent) {
+                    <span class="badge badge-danger">Absent</span>
+                  } @else if (record.isLate) {
+                    <span class="badge badge-warning">Late</span>
+                  } @else {
+                    <span class="badge badge-success">Present</span>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+  `,
+  styles: [`.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}@media(max-width:900px){.stats-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:600px){.stats-grid{grid-template-columns:1fr}}`]
+})
+export class AttendanceReportComponent implements OnInit {
+  private readonly reportService = inject(ReportService);
+
+  loading = true;
+  selectedMonth = format(new Date(), 'yyyy-MM');
+  report: AttendanceReport | null = null;
+  records: AttendanceRecord[] = [];
+
+  ngOnInit(): void {
+    this.load();
+  }
+
+  load(): void {
+    this.loading = true;
+    this.reportService.getAttendance(this.selectedMonth).subscribe({
+      next: (res) => {
+        this.records = Array.isArray(res.data) ? res.data : [];
+        this.report = this.buildAttendanceSummary(this.records);
+        this.loading = false;
+      },
+      error: () => {
+        this.report = null;
+        this.records = [];
+        this.loading = false;
+      }
+    });
+  }
+
+  getAttendanceStaffName(staff: unknown): string {
+    const value = staff as { user?: { name?: string }; name?: string } | string | null;
+    if (typeof value === 'string') return value;
+    return value?.user?.name ?? value?.name ?? '—';
+  }
+
+  private buildAttendanceSummary(records: AttendanceRecord[]): AttendanceReport {
+    return {
+      month: this.selectedMonth,
+      summary: {
+        totalDays: records.filter(record => !record.isAbsent).length,
+        lateDays: records.filter(record => record.isLate).length,
+        absentDays: records.filter(record => record.isAbsent).length,
+        hoursWorked: records.reduce((sum, record) => sum + (record.workingHours ?? record.workHours ?? 0), 0),
+      },
+      records,
+    };
+  }
+}
+
+@Component({
+  selector: 'app-staff-history-report',
+  standalone: true,
+  imports: [CommonModule, FormsModule, DateFormatPipe],
+  template: `
+    <div class="page-header">
+      <div>
+        <div class="page-title">Staff History Report</div>
+        <div class="page-subtitle">Load a staff member's history from the reports API.</div>
+      </div>
+      <div class="page-actions" style="flex-wrap:wrap">
+        <select class="form-control" style="min-width:260px" [(ngModel)]="selectedStaffId">
+          <option value="">Select staff member</option>
+          @for (member of staff; track member._id) {
+            <option [value]="member._id">{{ member.user.name }} - {{ member.user.email }}</option>
+          }
+        </select>
+        <button class="btn btn-primary" [disabled]="!selectedStaffId || loading" (click)="load()">
+          @if (loading) { <span class="spinner"></span> } Load History
+        </button>
+      </div>
+    </div>
+
+    @if (!selectedStaffId && !loading) {
+      <div class="empty-state">
+        <span class="material-icons empty-icon">history</span>
+        <div class="empty-title">Choose a staff member to view history</div>
+      </div>
+    } @else if (loading) {
+      <div class="card">
+        @for (i of [1,2,3,4]; track i) {
+          <div class="skeleton" style="height:56px;margin-bottom:8px;border-radius:var(--radius-sm)"></div>
+        }
+      </div>
+    } @else {
+      <div class="card mb-16">
+        <div class="fw-semibold mb-8">Selected Staff</div>
+        <div class="text-secondary">{{ selectedStaffName() }}</div>
+      </div>
+
+      @if (historyItems.length > 0) {
+        <div class="card" style="padding:0">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Event</th>
+                <th>Date</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of historyItems; track $index) {
+                <tr>
+                  <td>{{ getHistoryLabel(item) }}</td>
+                  <td>{{ getHistoryDate(item) | dateFormat:'PPpp' }}</td>
+                  <td><span class="text-secondary">{{ getHistoryDetails(item) }}</span></td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      } @else {
+        <div class="empty-state">
+          <span class="material-icons empty-icon">manage_search</span>
+          <div class="empty-title">No structured history items were found</div>
+        </div>
+      }
+
+    }
+  `,
+  styles: [``]
+})
+export class StaffHistoryReportComponent implements OnInit {
+  private readonly reportService = inject(ReportService);
+  private readonly staffService = inject(StaffService);
+
+  loading = false;
+  staff: Staff[] = [];
+  selectedStaffId = '';
+  rawHistory: unknown = null;
+  historyItems: unknown[] = [];
+
+  ngOnInit(): void {
+    this.staffService.getAll({ page: 1, limit: 500, sort: 'name' }).subscribe({
+      next: (res) => { this.staff = res.data ?? []; },
+      error: () => { this.staff = []; }
+    });
+  }
+
+  load(): void {
+    if (!this.selectedStaffId) return;
+    this.loading = true;
+    this.reportService.getStaffHistory(this.selectedStaffId).subscribe({
+      next: (res) => {
+        this.rawHistory = res.data;
+        this.historyItems = this.extractHistoryItems(res.data);
+        this.loading = false;
+      },
+      error: () => {
+        this.rawHistory = null;
+        this.historyItems = [];
+        this.loading = false;
+      }
+    });
+  }
+
+  selectedStaffName(): string {
+    const member = this.staff.find(item => item._id === this.selectedStaffId);
+    return member ? `${member.user.name} - ${member.user.email}` : '—';
+  }
+
+  private extractHistoryItems(data: unknown): unknown[] {
+    if (Array.isArray(data)) return data;
+    if (!data || typeof data !== 'object') return [];
+    const record = data as Record<string, unknown>;
+    const groupedItems = [
+      ...this.withSource(record['attendance'], 'attendance'),
+      ...this.withSource(record['monthlyReports'], 'monthly-report'),
+      ...this.withSource(record['history'], 'history'),
+      ...this.withSource(record['records'], 'record'),
+      ...this.withSource(record['items'], 'item'),
+      ...this.withSource(record['events'], 'event'),
+      ...this.withSource(record['logs'], 'log'),
+      ...this.withSource(record['timeline'], 'timeline'),
+      ...this.withSource(record['changes'], 'change'),
+    ];
+    if (groupedItems.length > 0) return groupedItems;
+    const candidates = ['history', 'records', 'items', 'events', 'logs', 'timeline', 'changes'];
+    for (const key of candidates) {
+      if (Array.isArray(record[key])) return record[key] as unknown[];
+    }
+    const firstArray = Object.values(record).find(Array.isArray);
+    return Array.isArray(firstArray) ? firstArray : [];
+  }
+
+  getHistoryLabel(item: unknown): string {
+    if (!item || typeof item !== 'object') return 'History Event';
+    const record = item as Record<string, unknown>;
+    if (record['__source'] === 'attendance') return 'Attendance Record';
+    if (record['__source'] === 'monthly-report') return 'Monthly Salary Report';
+    return String(record['action'] ?? record['event'] ?? record['type'] ?? record['status'] ?? 'History Event');
+  }
+
+  getHistoryDate(item: unknown): string | null {
+    if (!item || typeof item !== 'object') return null;
+    const record = item as Record<string, unknown>;
+    const value = record['date'] ?? record['createdAt'] ?? record['updatedAt'] ?? record['timestamp'];
+    return value ? String(value) : null;
+  }
+
+  getHistoryDetails(item: unknown): string {
+    if (!item || typeof item !== 'object') return String(item ?? '—');
+    const record = item as Record<string, unknown>;
+    if (record['__source'] === 'attendance') {
+      const workingHours = record['workingHours'] ?? record['workHours'] ?? 0;
+      const status = record['isAbsent'] ? 'Absent' : record['isLate'] ? 'Late' : 'Present';
+      const checkIn = this.formatTimeValue(record['checkIn']);
+      const checkOut = this.formatTimeValue(record['checkOut']);
+      const details = [
+        `Status: ${status}`,
+        `Working hours: ${workingHours}`,
+        checkIn ? `Check in: ${checkIn}` : null,
+        checkOut ? `Check out: ${checkOut}` : null,
+      ].filter(Boolean);
+      return details.join(' • ');
+    }
+    if (record['__source'] === 'monthly-report') {
+      const month = record['month'] ? `Month: ${String(record['month'])}` : null;
+      const worked = record['totalDaysWorked'] !== undefined ? `Worked days: ${String(record['totalDaysWorked'])}` : null;
+      const late = record['lateDays'] !== undefined ? `Late days: ${String(record['lateDays'])}` : null;
+      const absent = record['absentDays'] !== undefined ? `Absent days: ${String(record['absentDays'])}` : null;
+      const salary = record['finalSalary'] !== undefined ? `Final salary: ${String(record['finalSalary'])}` : null;
+      return [month, worked, late, absent, salary].filter(Boolean).join(' • ');
+    }
+    const value = record['description'] ?? record['details'] ?? record['note'] ?? record['reason'] ?? record['message'];
+    if (value) return String(value);
+    return 'No additional details available.';
+  }
+
+  private withSource(value: unknown, source: string): unknown[] {
+    if (!Array.isArray(value)) return [];
+    return value.map(item => item && typeof item === 'object'
+      ? ({ ...(item as Record<string, unknown>), __source: source })
+      : ({ value: item, __source: source }));
+  }
+
+  private formatTimeValue(value: unknown): string | null {
+    if (!value) return null;
+    const date = new Date(String(value));
+    return Number.isNaN(date.getTime())
+      ? String(value)
+      : date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   }
 }
 
