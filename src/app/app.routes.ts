@@ -124,12 +124,6 @@ export const appRoutes: Routes = [
 
       // Enterprise
       {
-        path: 'analytics',
-        title: 'Enterprise Analytics',
-        canActivate: [adminGuard],
-        loadComponent: () => import('./features/features.components').then(m => m.EnterpriseAnalyticsComponent),
-      },
-      {
         path: 'notifications',
         title: 'Notifications',
         loadComponent: () => import('./features/features.components').then(m => m.NotificationCenterComponent),

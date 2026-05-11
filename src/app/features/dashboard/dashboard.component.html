@@ -12,7 +12,6 @@
       <div class="hero-title">Company-wide HR operations, payroll, and activity monitoring</div>
     </div>
     <div class="hero-actions">
-      <a routerLink="/analytics" class="btn btn-primary">Analytics</a>
       <a routerLink="/reports/payroll" class="btn btn-secondary">Export Reports</a>
     </div>
   </section>
@@ -26,55 +25,98 @@
       <div class="stat-card stat-info" routerLink="/staff">
         <div class="stat-label">Total Employees</div>
         <div class="stat-value">{{ stats.totalStaff }}</div>
+        <div class="stat-meta">Company headcount</div>
         <div class="stat-icon"><span class="material-icons">people</span></div>
       </div>
       <div class="stat-card stat-success" routerLink="/staff">
         <div class="stat-label">Active Employees</div>
         <div class="stat-value">{{ stats.presentToday + stats.absentToday }}</div>
+        <div class="stat-meta">Current active roster</div>
         <div class="stat-icon"><span class="material-icons">badge</span></div>
       </div>
       <div class="stat-card stat-danger">
         <div class="stat-label">Absent Today</div>
         <div class="stat-value">{{ stats.absentToday }}</div>
+        <div class="stat-meta">Needs follow-up</div>
         <div class="stat-icon"><span class="material-icons">person_off</span></div>
       </div>
       <div class="stat-card stat-warning">
         <div class="stat-label">Late Today</div>
         <div class="stat-value">{{ stats.lateToday }}</div>
+        <div class="stat-meta">Arrival exceptions</div>
         <div class="stat-icon"><span class="material-icons">schedule</span></div>
       </div>
       <div class="stat-card stat-warning" routerLink="/leaves">
         <div class="stat-label">Pending Leaves</div>
         <div class="stat-value">{{ stats.pendingLeaves }}</div>
+        <div class="stat-meta">Awaiting approval</div>
         <div class="stat-icon"><span class="material-icons">beach_access</span></div>
       </div>
       <div class="stat-card stat-info" routerLink="/salary">
         <div class="stat-label">Payroll Pending</div>
         <div class="stat-value">{{ stats.unpaidSalaries }}</div>
+        <div class="stat-meta">Salary actions open</div>
         <div class="stat-icon"><span class="material-icons">payments</span></div>
       </div>
     }
   </div>
 
   <div class="insight-grid">
-    <div class="card">
-      <div class="flex items-center justify-between mb-16">
-        <div class="fw-bold">Attendance Heatmap</div>
-        <a routerLink="/analytics" class="btn btn-ghost" style="font-size:12px;padding:4px 10px">Open analytics</a>
+    <div class="card insight-card attendance-insight">
+      <div class="insight-header">
+        <div>
+          <div class="fw-bold">Attendance Heatmap</div>
+          <div class="insight-subtitle">Daily attendance density across recent workdays</div>
+        </div>
+        <div class="insight-badge success">89% avg</div>
       </div>
       <div class="heatmap-grid">
         @for (cell of [82,88,71,94,77,90,84,69,96,81,73,87,92,78,85,89,74,91,83,80]; track $index) {
-          <div class="heatmap-cell" [style.opacity]="cell / 100"></div>
+          <div
+            class="heatmap-cell"
+            [class.heat-low]="cell < 76"
+            [class.heat-mid]="cell >= 76 && cell < 88"
+            [class.heat-high]="cell >= 88"
+            [style.opacity]="0.68 + (cell / 320)"
+          >
+            <span>{{ cell }}</span>
+          </div>
         }
+      </div>
+      <div class="heatmap-legend">
+        <span>Low</span>
+        <div class="legend-ramp"><i></i><i></i><i></i></div>
+        <span>High</span>
       </div>
     </div>
 
-    <div class="card">
-      <div class="fw-bold mb-16">Salary Trend</div>
-      <div class="trend-chart">
-        @for (bar of [42,58,53,72,65,81,77,88]; track $index) {
-          <div class="trend-bar" [style.height.%]="bar"></div>
-        }
+    <div class="card insight-card salary-insight">
+      <div class="insight-header">
+        <div>
+          <div class="fw-bold">Salary Trend</div>
+          <div class="insight-subtitle">Payroll movement over the latest cycles</div>
+        </div>
+        <div class="insight-badge info">+12%</div>
+      </div>
+      <div class="trend-shell">
+        <div class="trend-axis">
+          <span>High</span>
+          <span>Mid</span>
+          <span>Low</span>
+        </div>
+        <div class="trend-chart">
+          @for (bar of [{label:'Jan', value:42}, {label:'Feb', value:58}, {label:'Mar', value:53}, {label:'Apr', value:72}, {label:'May', value:65}, {label:'Jun', value:81}, {label:'Jul', value:77}, {label:'Aug', value:88}]; track bar.label) {
+            <div class="trend-point">
+              <div class="trend-value">{{ bar.value }}%</div>
+              <div class="trend-bar" [style.height.%]="bar.value"></div>
+              <div class="trend-label">{{ bar.label }}</div>
+            </div>
+          }
+        </div>
+      </div>
+      <div class="trend-footer">
+        <span><i class="dot growth"></i>Paid cycle growth</span>
+        <span><i class="dot target"></i>Target range</span>
       </div>
     </div>
   </div>
@@ -152,21 +194,25 @@
       <div class="stat-card stat-success">
         <div class="stat-label">Today's Status</div>
         <div class="stat-value staff-status">{{ staffDashboard.attendanceStatus }}</div>
+        <div class="stat-meta">Attendance state</div>
         <div class="stat-icon"><span class="material-icons">fingerprint</span></div>
       </div>
       <div class="stat-card stat-info" routerLink="/leaves">
         <div class="stat-label">Remaining Leave</div>
         <div class="stat-value">{{ staffDashboard.remainingLeaveBalance }}</div>
+        <div class="stat-meta">Available balance</div>
         <div class="stat-icon"><span class="material-icons">event_available</span></div>
       </div>
       <div class="stat-card stat-warning">
         <div class="stat-label">Payroll Date</div>
         <div class="stat-value staff-date">{{ staffDashboard.upcomingPayrollDate }}</div>
+        <div class="stat-meta">Upcoming payout</div>
         <div class="stat-icon"><span class="material-icons">payments</span></div>
       </div>
       <div class="stat-card stat-info" routerLink="/notifications">
         <div class="stat-label">Unread Notifications</div>
         <div class="stat-value">{{ socket.unreadCount() }}</div>
+        <div class="stat-meta">New updates</div>
         <div class="stat-icon"><span class="material-icons">notifications</span></div>
       </div>
     }

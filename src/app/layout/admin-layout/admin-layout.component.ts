@@ -52,7 +52,6 @@ export class AdminLayoutComponent implements OnInit {
     { label: 'Staff', icon: 'people', route: '/staff', adminOnly: true },
     { label: 'Attendance', icon: 'schedule', route: '/attendance', adminOnly: true },
     { label: 'Check In/Out', icon: 'fingerprint', route: '/attendance/checkin', staffOnly: true },
-    { label: 'Analytics', icon: 'analytics', route: '/analytics', adminOnly: true },
     { label: 'Reports', icon: 'assessment', route: '/reports', adminOnly: true },
     { label: 'Salary', icon: 'payments', route: '/salary', adminOnly: true },
     { label: 'Leaves', icon: 'beach_access', route: '/leaves' },
