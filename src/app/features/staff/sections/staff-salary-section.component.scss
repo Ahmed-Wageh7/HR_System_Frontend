@@ -1,0 +1,109 @@
+    .section-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .section-header,
+    .salary-actions,
+    .adjust-panel {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .section-header {
+      margin-bottom: 16px;
+    }
+
+    .section-title {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .section-subtitle {
+      color: var(--text-muted);
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
+    .month-input {
+      width: 180px;
+    }
+
+    .salary-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .metric-card {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      background: var(--bg-elevated);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .metric-card-highlight {
+      background: linear-gradient(135deg, var(--sidebar-active-bg), transparent), var(--bg-elevated);
+      border-color: var(--sidebar-active-border);
+    }
+
+    .metric-label {
+      color: var(--text-muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 700;
+    }
+
+    .salary-status {
+      padding: 10px 16px;
+      font-size: 12px;
+    }
+
+    .adjust-panel {
+      margin-top: 18px;
+      padding: 16px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.02);
+      justify-content: flex-start;
+    }
+
+    .adjust-panel .form-control {
+      width: 220px;
+    }
+
+    .section-loading {
+      min-height: 180px;
+      display: grid;
+      place-items: center;
+    }
+
+    .compact-empty {
+      padding: 28px 18px;
+    }
+
+    @media (max-width: 860px) {
+      .salary-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 640px) {
+      .month-input,
+      .adjust-panel .form-control {
+        width: 100%;
+      }
+
+      .salary-grid {
+        grid-template-columns: 1fr;
+      }
+    }

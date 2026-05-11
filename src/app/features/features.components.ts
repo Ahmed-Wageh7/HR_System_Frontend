@@ -9,6 +9,7 @@ import { AuthService } from '../core/services/auth.service';
 import { AvatarViewService, AvatarViewSettings } from '../core/services/avatar-view.service';
 import { Department, Role, AuditLog, Ticket, Staff, PayrollReport, PayrollReportRecord, AttendanceReport, AttendanceRecord, SalaryRecord } from '../core/models';
 import { StaffService } from '../core/services/staff.service';
+import { SocketService } from '../core/services/socket.service';
 import { showAppToast } from '../core/utils/toast';
 import { HasPermissionDirective } from '../shared/directives/has-permission.directive';
 import { DateFormatPipe, TimeAgoPipe, CurrencyFormatPipe } from '../shared/pipes/pipes';
@@ -105,7 +106,7 @@ import { format } from 'date-fns';
     } @else {
       <div class="dept-grid">
         @for (d of (tab === 'active' ? active : archived); track d._id) {
-          <div class="dept-card" [class.dept-card-archived]="!!d.deletedAt" (click)="showDepartment(d._id)">
+          <div class="dept-card" [class.dept-card-archived]="!!d.deletedAt" (click)="showDepartment(d)">
             <div class="dept-card-header">
               <div class="dept-icon"><span class="material-icons" style="font-size:24px">corporate_fare</span></div>
               <div class="dept-actions">
@@ -173,7 +174,7 @@ import { format } from 'date-fns';
     .dept-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; transition: var(--transition); cursor: pointer; &:hover { border-color: var(--border-strong); } }
     .dept-card-archived { opacity: 0.72; border-style: dashed; }
     .dept-card-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px; }
-    .dept-icon { width: 52px; height: 52px; background: var(--accent-dim); color: var(--accent); border-radius: 14px; display: flex; align-items: center; justify-content: center; }
+    .dept-icon { width: 52px; height: 52px; background: var(--sidebar-active-bg); color: var(--sidebar-active-text); border: 1px solid var(--sidebar-active-border); border-radius: 14px; display: flex; align-items: center; justify-content: center; }
     .dept-actions { display: flex; gap: 4px; }
     .dept-name { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
     .dept-desc { font-size: 12px; color: var(--text-secondary); margin-bottom: 12px; }
@@ -192,6 +193,7 @@ export class DeptListComponent implements OnInit {
   departments: Department[] = [];
   active: Department[] = [];
   archived: Department[] = [];
+  private localArchivedDepartments: Department[] = [];
   tab = 'active';
   page = 1;
   limit = 12;
@@ -221,12 +223,10 @@ export class DeptListComponent implements OnInit {
 
   load(): void {
     this.loading = true;
-    this.svc.getAll({ page: this.page, limit: this.limit, sort: this.sort }).subscribe({
+    this.svc.getAll({ page: this.page, limit: this.limit, sort: this.sort, includeDeleted: true } as DepartmentQueryWithArchived).subscribe({
       next: res => {
-        const departments = this.normalizeDepartments(res.data);
-        this.departments = departments;
-        this.active = departments.filter(d => !d.deletedAt);
-        this.archived = departments.filter(d => !!d.deletedAt);
+        const departments = this.mergeLocalArchived(this.normalizeDepartments(res.data));
+        this.applyDepartmentList(departments);
         this.totalDepartments = res.pagination?.total ?? res.pagination?.totalDocuments ?? departments.length;
         this.loading = false;
       },
@@ -236,13 +236,9 @@ export class DeptListComponent implements OnInit {
 
   openCreate(): void { this.editing = null; this.deptForm.reset(); this.formOpen = true; }
   openEdit(d: Department): void { this.editing = d; this.deptForm.patchValue({ name: d.name, description: d.description ?? '' }); this.formOpen = true; }
-  showDepartment(id: string): void {
-    this.svc.getById(id).subscribe({
-      next: res => {
-        this.selectedDepartment = res.data;
-        this.detailOpen = true;
-      }
-    });
+  showDepartment(department: Department): void {
+    this.selectedDepartment = department;
+    this.detailOpen = true;
   }
   closeDetail(): void {
     this.detailOpen = false;
@@ -280,17 +276,37 @@ export class DeptListComponent implements OnInit {
 
   confirmDelete(): void {
     if (!this.deleteTarget) return;
+    const archivedDepartment: Department = {
+      ...this.deleteTarget,
+      deletedAt: this.deleteTarget.deletedAt ?? new Date().toISOString(),
+    };
     this.svc.delete(this.deleteTarget._id).subscribe(() => {
       this.confirmOpen = false;
+      this.localArchivedDepartments = this.upsertDepartment(this.localArchivedDepartments, archivedDepartment);
+      this.departments = this.upsertDepartment(
+        this.departments.filter(dept => dept._id !== archivedDepartment._id),
+        archivedDepartment
+      );
+      this.applyDepartmentList(this.departments);
       this.deleteTarget = null;
       this.tab = 'archived';
       if (this.departments.length === 1 && this.page > 1) this.page -= 1;
-      this.load();
     });
   }
 
   restoreDept(id: string): void {
-    this.svc.restore(id).subscribe(() => this.load());
+    this.svc.restore(id).subscribe((res) => {
+      this.localArchivedDepartments = this.localArchivedDepartments.filter(dept => dept._id !== id);
+      if (res.data) {
+        this.departments = this.upsertDepartment(this.departments.filter(dept => dept._id !== id), {
+          ...res.data,
+          deletedAt: null,
+        });
+        this.applyDepartmentList(this.departments);
+      }
+      this.tab = 'active';
+      this.load();
+    });
   }
 
   setPage(page: number): void {
@@ -310,7 +326,31 @@ export class DeptListComponent implements OnInit {
     }
     return [];
   }
+
+  private applyDepartmentList(departments: Department[]): void {
+    this.departments = departments;
+    this.active = departments.filter(d => !d.deletedAt);
+    this.archived = departments.filter(d => !!d.deletedAt);
+  }
+
+  private mergeLocalArchived(departments: Department[]): Department[] {
+    const serverIds = new Set(departments.map(dept => dept._id));
+    const missingArchived = this.localArchivedDepartments.filter(dept => !serverIds.has(dept._id));
+    return [...departments, ...missingArchived];
+  }
+
+  private upsertDepartment(list: Department[], department: Department): Department[] {
+    const withoutCurrent = list.filter(item => item._id !== department._id);
+    return [department, ...withoutCurrent];
+  }
 }
+
+type DepartmentQueryWithArchived = {
+  page: number;
+  limit: number;
+  sort: string;
+  includeDeleted: boolean;
+};
 
 // ============================================================
 // ROLES
@@ -913,7 +953,7 @@ export class AuditListComponent implements OnInit {
 @Component({
   selector: 'app-ticket-list',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, DateFormatPipe, HasPermissionDirective],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterLink, DateFormatPipe, HasPermissionDirective],
   template: `
     <div class="page-header">
       <div><div class="page-title">Support Tickets</div></div>
@@ -1000,7 +1040,7 @@ export class TicketListComponent implements OnInit {
 
   load(): void {
     this.loading = true;
-    this.svc.getAll({ page: this.page, limit: this.limit, sort: '-createdAt' }).subscribe({
+    this.svc.getMyTickets({ page: this.page, limit: this.limit, sort: '-createdAt' }).subscribe({
       next: res => {
         this.tickets = this.normalizeTickets(res.data);
         this.totalTickets = res.pagination?.total ?? res.pagination?.totalDocuments ?? this.tickets.length;
@@ -1060,10 +1100,11 @@ export class TicketListComponent implements OnInit {
     </form>
   `
 })
-export class TicketFormComponent {
+export class TicketFormComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly svc = inject(TicketService);
   private readonly router = inject(Router);
+  private readonly auth = inject(AuthService);
 
   submitting = false;
 
@@ -1071,6 +1112,13 @@ export class TicketFormComponent {
     subject: ['', Validators.required],
     description: ['', Validators.required],
   });
+
+  ngOnInit(): void {
+    if (this.auth.hasRole('admin') || this.auth.hasPermission('ticket:update')) {
+      showAppToast('warning', 'Only staff can create support tickets.');
+      this.router.navigate(['/tickets']);
+    }
+  }
 
   onSubmit(): void {
     if (this.form.invalid) {
@@ -1154,7 +1202,7 @@ export class TicketFormComponent {
         }
 
         <!-- Reply Form -->
-        @if (ticket.status !== 'closed') {
+        @if (ticket.status !== 'closed' && !canUpdateTicketStatus) {
           <div class="card">
             <div class="fw-bold mb-12">Add Reply</div>
             <textarea class="form-control" rows="4" placeholder="Type your reply…" [(ngModel)]="replyText"></textarea>
@@ -1174,6 +1222,7 @@ export class TicketDetailComponent implements OnInit {
 
   loading = true;
   ticket: Ticket | null = null;
+  ticketId = '';
   replyText = '';
   replying = false;
   newStatus = 'open';
@@ -1185,8 +1234,8 @@ export class TicketDetailComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    const id = this.route.snapshot.paramMap.get('id')!;
-    this.svc.getById(id).subscribe({
+    this.ticketId = this.route.snapshot.paramMap.get('id')!;
+    this.svc.getById(this.ticketId).subscribe({
       next: res => { this.ticket = res.data; this.newStatus = res.data.status; this.loading = false; },
       error: () => { this.loading = false; }
     });
@@ -1206,12 +1255,13 @@ export class TicketDetailComponent implements OnInit {
   }
 
   updateStatus(): void {
-    if (!this.ticket) return;
+    const id = this.ticket?._id ?? this.ticketId;
+    if (!id) return;
     this.statusUpdating = true;
-    this.svc.updateStatus(this.ticket._id, { status: this.newStatus as Ticket['status'] }).subscribe({
+    this.svc.updateStatus(id, { status: this.newStatus as Ticket['status'] }).subscribe({
       next: (res) => {
-        this.ticket = res.data;
-        this.newStatus = res.data.status;
+        this.ticket = res.data ?? this.ticket;
+        this.newStatus = res.data?.status ?? this.newStatus;
         this.statusUpdating = false;
         this.statusMenuOpen = false;
       },
@@ -1857,15 +1907,15 @@ export class StaffHistoryReportComponent implements OnInit {
     .photo-adjuster-grid { display: grid; gap: 12px; }
     .photo-slider { display: grid; gap: 6px; }
     .photo-slider span { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-secondary); }
-    .photo-slider input[type='range'] { width: 100%; accent-color: var(--accent); }
+    .photo-slider input[type='range'] { width: 100%; accent-color: var(--sidebar-active-text); }
     .avatar-editor-modal { width: min(100%, 560px); max-width: 560px; }
     .avatar-editor-preview { display: flex; justify-content: center; margin-bottom: 20px; }
     .avatar-editor-frame { width: 260px; height: 260px; font-size: 72px; box-shadow: 0 20px 48px rgba(17, 88, 182, 0.2); }
     .strength-bar { height: 4px; background: var(--bg-elevated); border-radius: 2px; overflow: hidden; }
     .strength-fill { height: 100%; border-radius: 2px; transition: var(--transition); }
-    .strength-fill.weak { background: var(--danger); }
-    .strength-fill.medium { background: var(--warning); }
-    .strength-fill.strong { background: var(--success); }
+    .strength-fill.weak { background: var(--sidebar-active-text); }
+    .strength-fill.medium { background: var(--sidebar-active-text); }
+    .strength-fill.strong { background: var(--sidebar-active-text); }
   `]
 })
 export class ProfileComponent implements OnInit {
@@ -2009,5 +2059,268 @@ export class ProfileComponent implements OnInit {
       this.avatarEditorOpen = false;
       this.auth.loadProfile().subscribe();
     });
+  }
+}
+
+// ============================================================
+// ENTERPRISE ANALYTICS
+// ============================================================
+@Component({
+  selector: 'app-enterprise-analytics',
+  standalone: true,
+  imports: [CommonModule, FormsModule, CurrencyFormatPipe],
+  template: `
+    <div class="page-header">
+      <div>
+        <div class="page-title">Enterprise Analytics</div>
+        <div class="page-subtitle">Attendance, payroll, hiring, retention, and department insights.</div>
+      </div>
+      <div class="page-actions">
+        <input type="month" class="form-control" style="width:180px" [(ngModel)]="selectedMonth" (ngModelChange)="load()">
+        <select class="form-control" style="width:180px" [(ngModel)]="departmentFilter">
+          <option value="">All departments</option>
+          @for (department of departments; track department._id) {
+            <option [value]="department._id">{{ department.name }}</option>
+          }
+        </select>
+      </div>
+    </div>
+
+    <div class="stats-grid mb-16">
+      <div class="stat-card">
+        <div class="stat-label">Employees</div>
+        <div class="stat-value">{{ totalStaff }}</div>
+        <div class="stat-icon"><span class="material-icons">people</span></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Payroll</div>
+        <div class="stat-value" style="font-size:22px">{{ totalPayroll | currencyFormat }}</div>
+        <div class="stat-icon"><span class="material-icons">payments</span></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Late Days</div>
+        <div class="stat-value">{{ lateDays }}</div>
+        <div class="stat-icon"><span class="material-icons">schedule</span></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Absent Days</div>
+        <div class="stat-value">{{ absentDays }}</div>
+        <div class="stat-icon"><span class="material-icons">person_off</span></div>
+      </div>
+    </div>
+
+    <div class="enterprise-grid">
+      <div class="card">
+        <div class="fw-bold mb-16">Attendance Trends</div>
+        <div class="mini-chart">
+          @for (bar of attendanceTrend; track $index) {
+            <div class="mini-bar" [style.height.%]="bar"></div>
+          }
+        </div>
+      </div>
+      <div class="card">
+        <div class="fw-bold mb-16">Salary Distribution</div>
+        <div class="mini-chart">
+          @for (bar of salaryDistribution; track $index) {
+            <div class="mini-bar alt" [style.height.%]="bar"></div>
+          }
+        </div>
+      </div>
+      <div class="card">
+        <div class="fw-bold mb-16">Department Performance</div>
+        <div class="dept-list">
+          @for (department of departments; track department._id) {
+            <div class="dept-row">
+              <div class="dept-name">{{ department.name }}</div>
+              <div class="dept-bar-wrap"><div class="dept-bar" [style.width.%]="getDepartmentPercent(department)"></div></div>
+              <div class="dept-count">{{ department.staffCount || 0 }}</div>
+            </div>
+          }
+        </div>
+      </div>
+      <div class="card">
+        <div class="fw-bold mb-16">Exportable Insights</div>
+        <div class="analytics-list">
+          <div>Late attendance report</div>
+          <div>Leave statistics</div>
+          <div>Hiring trend snapshot</div>
+          <div>Retention risk overview</div>
+        </div>
+      </div>
+    </div>
+  `,
+  styles: [`
+    .enterprise-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+    .mini-chart{height:210px;display:flex;align-items:flex-end;gap:10px}
+    .mini-bar{flex:1;min-height:18px;border-radius:8px 8px 2px 2px;background:var(--sidebar-active-text);opacity:.88}
+    .mini-bar.alt{background:var(--accent)}
+    .analytics-list{display:grid;gap:10px}.analytics-list div{padding:12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-elevated);font-size:13px}
+    .dept-list{display:flex;flex-direction:column;gap:12px}.dept-row{display:flex;align-items:center;gap:12px}.dept-name{width:150px;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.dept-bar-wrap{flex:1;height:7px;background:var(--bg-elevated);border-radius:999px;overflow:hidden}.dept-bar{height:100%;background:var(--sidebar-active-text)}.dept-count{width:32px;text-align:right;color:var(--text-secondary);font-size:13px}
+    @media(max-width:768px){.enterprise-grid{grid-template-columns:1fr}}
+  `]
+})
+export class EnterpriseAnalyticsComponent implements OnInit {
+  private readonly staffService = inject(StaffService);
+  private readonly departmentService = inject(DepartmentService);
+  private readonly reportService = inject(ReportService);
+
+  selectedMonth = format(new Date(), 'yyyy-MM');
+  departmentFilter = '';
+  departments: Department[] = [];
+  totalStaff = 0;
+  totalPayroll = 0;
+  lateDays = 0;
+  absentDays = 0;
+  attendanceTrend = [62, 74, 68, 83, 77, 91, 88, 79, 86, 92, 81, 89];
+  salaryDistribution = [34, 48, 67, 76, 58, 43, 29, 18];
+
+  ngOnInit(): void {
+    this.load();
+  }
+
+  load(): void {
+    forkJoin({
+      staff: this.staffService.getAll({ page: 1, limit: 500 }),
+      departments: this.departmentService.getAll(),
+      payroll: this.reportService.getPayroll(this.selectedMonth),
+      attendance: this.reportService.getAttendance(this.selectedMonth),
+    }).subscribe({
+      next: ({ staff, departments, payroll, attendance }) => {
+        this.totalStaff = staff.pagination?.total ?? staff.data?.length ?? 0;
+        this.departments = Array.isArray(departments.data) ? departments.data : [];
+        const payrollRecords = Array.isArray(payroll.data) ? payroll.data : [];
+        this.totalPayroll = payrollRecords.reduce((sum, record) => sum + (record.salary?.finalSalary ?? 0), 0);
+        const attendanceRecords = Array.isArray(attendance.data) ? attendance.data : [];
+        this.lateDays = attendanceRecords.filter(record => record.isLate).length;
+        this.absentDays = attendanceRecords.filter(record => record.isAbsent).length;
+      },
+    });
+  }
+
+  getDepartmentPercent(department: Department): number {
+    const max = Math.max(...this.departments.map(item => item.staffCount || 0), 1);
+    return ((department.staffCount || 0) / max) * 100;
+  }
+}
+
+// ============================================================
+// NOTIFICATION CENTER
+// ============================================================
+@Component({
+  selector: 'app-notification-center',
+  standalone: true,
+  imports: [CommonModule, TimeAgoPipe],
+  template: `
+    <div class="page-header">
+      <div>
+        <div class="page-title">Notification Center</div>
+        <div class="page-subtitle">Real-time updates, read states, priority categories, and history.</div>
+      </div>
+      <button class="btn btn-secondary" (click)="socket.markAllRead()">Mark all read</button>
+    </div>
+
+    <div class="notification-shell">
+      <div class="card">
+        <div class="fw-bold mb-16">Inbox</div>
+        @if (socket.notifications().length === 0) {
+          <div class="empty-state"><span class="material-icons empty-icon">notifications</span><div class="empty-title">No notifications yet</div></div>
+        } @else {
+          <div class="notification-list">
+            @for (notification of socket.notifications(); track notification._id) {
+              <button class="notification-row" [class.unread]="!notification.read" (click)="socket.markRead(notification._id)">
+                <span class="material-icons">notifications</span>
+                <span>
+                  <strong>{{ notification.title }}</strong>
+                  <small>{{ notification.message }}</small>
+                </span>
+                <em>{{ notification.createdAt | timeAgo }}</em>
+              </button>
+            }
+          </div>
+        }
+      </div>
+      <div class="card">
+        <div class="fw-bold mb-16">Delivery Channels</div>
+        <div class="settings-list">
+          <label><input type="checkbox" checked> In-app real-time notifications</label>
+          <label><input type="checkbox" checked> Email notifications</label>
+          <label><input type="checkbox"> Push notifications</label>
+          <label><input type="checkbox" checked> Payroll and leave priority alerts</label>
+        </div>
+      </div>
+    </div>
+  `,
+  styles: [`
+    .notification-shell{display:grid;grid-template-columns:1.4fr .8fr;gap:16px}
+    .notification-list{display:flex;flex-direction:column;gap:8px}
+    .notification-row{display:grid;grid-template-columns:32px 1fr auto;gap:12px;align-items:center;text-align:left;border:1px solid var(--border);background:var(--bg-elevated);color:var(--text-primary);border-radius:var(--radius-sm);padding:12px;cursor:pointer}
+    .notification-row.unread{border-color:var(--sidebar-active-border);background:var(--sidebar-active-bg)}
+    .notification-row small{display:block;color:var(--text-secondary);font-style:normal}.notification-row em{color:var(--text-muted);font-size:11px;font-style:normal}
+    .settings-list{display:grid;gap:14px}.settings-list label{display:flex;gap:10px;align-items:center;color:var(--text-secondary);font-size:13px}
+    @media(max-width:768px){.notification-shell{grid-template-columns:1fr}.notification-row{grid-template-columns:28px 1fr}}
+  `]
+})
+export class NotificationCenterComponent {
+  readonly socket = inject(SocketService);
+}
+
+// ============================================================
+// COMPANY SETTINGS
+// ============================================================
+@Component({
+  selector: 'app-company-settings',
+  standalone: true,
+  imports: [CommonModule, ReactiveFormsModule],
+  template: `
+    <div class="page-header">
+      <div>
+        <div class="page-title">Company Settings</div>
+        <div class="page-subtitle">Tenant branding, localization, payroll policy, and SaaS configuration.</div>
+      </div>
+      <button class="btn btn-primary" [disabled]="form.invalid" (click)="save()">Save Settings</button>
+    </div>
+
+    <form [formGroup]="form" class="settings-grid">
+      <div class="card">
+        <div class="fw-bold mb-16">Tenant Profile</div>
+        <div class="form-group"><label>Company Name</label><input class="form-control" formControlName="companyName"></div>
+        <div class="form-group"><label>Subdomain</label><input class="form-control" formControlName="subdomain"></div>
+        <div class="form-group"><label>Primary Brand Color</label><input class="form-control" type="color" formControlName="brandColor"></div>
+      </div>
+      <div class="card">
+        <div class="fw-bold mb-16">Localization</div>
+        <div class="form-group"><label>Default Language</label><select class="form-control" formControlName="language"><option value="en">English</option><option value="ar">Arabic</option></select></div>
+        <div class="form-group"><label>Direction</label><select class="form-control" formControlName="direction"><option value="ltr">LTR</option><option value="rtl">RTL</option></select></div>
+        <div class="form-group"><label>Currency</label><input class="form-control" formControlName="currency"></div>
+      </div>
+      <div class="card">
+        <div class="fw-bold mb-16">Policies</div>
+        <div class="form-group"><label>Payroll Day</label><input class="form-control" type="number" min="1" max="31" formControlName="payrollDay"></div>
+        <div class="form-group"><label>Annual Leave Balance</label><input class="form-control" type="number" min="0" formControlName="annualLeave"></div>
+        <label class="setting-check"><input type="checkbox" formControlName="offlineAttendance"> Allow offline attendance drafts</label>
+      </div>
+    </form>
+  `,
+  styles: [`
+    .settings-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.setting-check{display:flex;gap:10px;align-items:center;color:var(--text-secondary);font-size:13px}
+    @media(max-width:900px){.settings-grid{grid-template-columns:1fr}}
+  `]
+})
+export class CompanySettingsComponent {
+  private readonly fb = inject(FormBuilder);
+  form = this.fb.group({
+    companyName: ['TalentHub Demo Co.', Validators.required],
+    subdomain: ['companyA', Validators.required],
+    brandColor: ['#156fe5'],
+    language: ['en'],
+    direction: ['ltr'],
+    currency: ['EGP'],
+    payrollDay: [30, [Validators.required, Validators.min(1), Validators.max(31)]],
+    annualLeave: [21, [Validators.required, Validators.min(0)]],
+    offlineAttendance: [true],
+  });
+
+  save(): void {
+    showAppToast('success', 'Company settings saved locally. Connect tenant settings API to persist.');
   }
 }

@@ -1,0 +1,86 @@
+<div class="page-header">
+  <div>
+    <div class="page-title">Payroll Report</div>
+    <div class="page-subtitle">Monthly payroll summary from the reports API.</div>
+  </div>
+  <div class="page-actions">
+    <input type="month" class="form-control month-input" [(ngModel)]="selectedMonth" (ngModelChange)="load()">
+  </div>
+</div>
+
+@if (loading) {
+  <div class="card">
+    @for (i of [1,2,3,4]; track i) {
+      <div class="skeleton payroll-skeleton"></div>
+    }
+  </div>
+} @else {
+  <div class="stats-grid mb-16">
+    <div class="stat-card stat-info">
+      <div class="stat-label">Month</div>
+      <div class="stat-value stat-value-compact">{{ report?.month || selectedMonth }}</div>
+      <div class="stat-icon"><span class="material-icons">calendar_month</span></div>
+    </div>
+    <div class="stat-card stat-success">
+      <div class="stat-label">Total Payroll</div>
+      <div class="stat-value stat-value-compact">{{ report?.totalPayroll | currencyFormat }}</div>
+      <div class="stat-icon"><span class="material-icons">account_balance_wallet</span></div>
+    </div>
+    <div class="stat-card stat-warning">
+      <div class="stat-label">Staff</div>
+      <div class="stat-value">{{ report?.totalStaff ?? 0 }}</div>
+      <div class="stat-icon"><span class="material-icons">groups</span></div>
+    </div>
+    <div class="stat-card stat-danger">
+      <div class="stat-label">Unpaid</div>
+      <div class="stat-value">{{ report?.totalUnpaid ?? 0 }}</div>
+      <div class="stat-icon"><span class="material-icons">pending_actions</span></div>
+    </div>
+  </div>
+
+  <div class="card payroll-report-card">
+    @if (records.length === 0) {
+      <div class="empty-state">
+        <span class="material-icons empty-icon">payments</span>
+        <div class="empty-title">No payroll records found</div>
+      </div>
+    } @else {
+      <div class="payroll-table-scroll">
+        <table class="data-table payroll-table">
+          <thead>
+            <tr>
+              <th>Employee</th>
+              <th>Month</th>
+              <th>Final Salary</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (record of records; track getStaffId(record)) {
+              <tr>
+                <td>{{ getStaffName(record) }}</td>
+                <td>{{ report?.month || selectedMonth }}</td>
+                <td>{{ getFinalSalary(record) | currencyFormat }}</td>
+                <td>
+                  @if (isPaid(record)) {
+                    <span class="badge badge-success">Paid</span>
+                  } @else {
+                    <span class="badge badge-warning">Unpaid</span>
+                  }
+                </td>
+                <td>
+                  @if (getStaffId(record)) {
+                    <a class="btn btn-secondary btn-sm payroll-action" [routerLink]="['/staff', getStaffId(record), 'salary']">View</a>
+                  } @else {
+                    <span class="text-muted">-</span>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+}

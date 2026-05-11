@@ -1,0 +1,87 @@
+    <div class="section-stack">
+      <div class="card">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Attendance by Month</div>
+            <div class="section-subtitle">Monthly summary from the dedicated month endpoint.</div>
+          </div>
+          <input type="month" class="form-control month-input" [(ngModel)]="selectedMonth" (ngModelChange)="loadSummary()">
+        </div>
+
+        @if (summaryLoading) {
+          <div class="section-loading"><div class="spinner" style="width:26px;height:26px"></div></div>
+        } @else if (summary) {
+          <div class="summary-grid">
+            <div class="metric-card">
+              <span class="metric-label">Worked Days</span>
+              <strong>{{ summary.totalDays }}</strong>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">Late Days</span>
+              <strong>{{ summary.lateDays }}</strong>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">Absent Days</span>
+              <strong>{{ summary.absentDays }}</strong>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">Hours Worked</span>
+              <strong>{{ summary.hoursWorked | number:'1.1-1' }}</strong>
+            </div>
+          </div>
+        }
+      </div>
+
+      <div class="card">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Attendance History</div>
+            <div class="section-subtitle">Full attendance records from the history endpoint.</div>
+          </div>
+        </div>
+
+        @if (recordsLoading) {
+          <div class="section-loading"><div class="spinner" style="width:26px;height:26px"></div></div>
+        } @else if (records.length === 0) {
+          <div class="empty-state compact-empty">
+            <span class="material-icons empty-icon">event_busy</span>
+            <div class="empty-title">No attendance records found</div>
+          </div>
+        } @else {
+          <div class="data-table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Check In</th>
+                  <th>Check Out</th>
+                  <th>Hours</th>
+                  <th>Deduction</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (record of records; track record._id) {
+                  <tr>
+                    <td>{{ record.date | dateFormat }}</td>
+                    <td>{{ record.checkIn ? (record.checkIn | dateFormat:'HH:mm') : '—' }}</td>
+                    <td>{{ record.checkOut ? (record.checkOut | dateFormat:'HH:mm') : '—' }}</td>
+                    <td>{{ getWorkingHours(record) | number:'1.1-1' }}</td>
+                    <td>{{ record.deductionAmount ?? 0 | number:'1.0-2' }}</td>
+                    <td>
+                      @if (record.isAbsent) {
+                        <span class="badge badge-danger">Absent</span>
+                      } @else if (record.isLate) {
+                        <span class="badge badge-warning">Late</span>
+                      } @else {
+                        <span class="badge badge-success">Present</span>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+    </div>

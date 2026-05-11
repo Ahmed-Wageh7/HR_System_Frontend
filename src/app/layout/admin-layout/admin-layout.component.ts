@@ -14,8 +14,9 @@ interface NavItem {
   label: string;
   icon: string;
   route: string;
-  permission?: string;
+  permission?: string | string[];
   adminOnly?: boolean;
+  staffOnly?: boolean;
 }
 
 interface NestedNavItem {
@@ -42,22 +43,31 @@ export class AdminLayoutComponent implements OnInit {
   readonly currentUser = computed(() => this.auth.currentUser());
   readonly currentUserName = computed(() => this.currentUser()?.name ?? '');
   readonly currentUserEmail = computed(() => this.currentUser()?.email ?? '');
+  readonly isAdminExperience = computed(() => this.auth.isAdminLike());
   readonly fallbackStaffWorkspaceId = signal<string | null>(null);
   notifOpen = false;
  
   readonly navItems: NavItem[] = [
     { label: 'Dashboard', icon: 'dashboard', route: '/dashboard' },
-    { label: 'Staff', icon: 'people', route: '/staff' },
-    { label: 'Attendance', icon: 'schedule', route: '/attendance' },
-    { label: 'Salary', icon: 'payments', route: '/salary' },
-    { label: 'Reports', icon: 'analytics', route: '/reports' },
+    { label: 'Staff', icon: 'people', route: '/staff', adminOnly: true },
+    { label: 'Attendance', icon: 'schedule', route: '/attendance', adminOnly: true },
+    { label: 'Check In/Out', icon: 'fingerprint', route: '/attendance/checkin', staffOnly: true },
+    { label: 'Analytics', icon: 'analytics', route: '/analytics', adminOnly: true },
+    { label: 'Reports', icon: 'assessment', route: '/reports', adminOnly: true },
+    { label: 'Salary', icon: 'payments', route: '/salary', adminOnly: true },
     { label: 'Leaves', icon: 'beach_access', route: '/leaves' },
-    { label: 'Departments', icon: 'corporate_fare', route: '/departments' },
-    { label: 'Roles', icon: 'admin_panel_settings', route: '/roles' },
-    { label: 'Audit Logs', icon: 'history', route: '/audit-logs' },
+    { label: 'Departments', icon: 'corporate_fare', route: '/departments', adminOnly: true },
+    { label: 'Roles', icon: 'admin_panel_settings', route: '/roles', adminOnly: true },
+    { label: 'Audit Logs', icon: 'history', route: '/audit-logs', adminOnly: true },
     { label: 'Tickets', icon: 'confirmation_number', route: '/tickets' },
+    { label: 'Notifications', icon: 'notifications', route: '/notifications' },
+    { label: 'Company Settings', icon: 'settings', route: '/company-settings', adminOnly: true },
     { label: 'Profile', icon: 'manage_accounts', route: '/profile' },
   ];
+
+  readonly visibleNavItems = computed(() =>
+    this.navItems.filter((item) => this.canShowNavItem(item))
+  );
 
   get isStaffRoute(): boolean {
     return this.router.url.split('?')[0].startsWith('/staff');
@@ -75,16 +85,8 @@ export class AdminLayoutComponent implements OnInit {
     return this.router.url.split('?')[0].startsWith('/attendance');
   }
 
-  get showLeavesSubnav(): boolean {
-    return this.router.url.split('?')[0].startsWith('/leaves');
-  }
-
   get showReportsSubnav(): boolean {
     return this.router.url.split('?')[0].startsWith('/reports');
-  }
-
-  get showTicketsSubnav(): boolean {
-    return this.router.url.split('?')[0].startsWith('/tickets');
   }
 
   get staffSubnav(): NestedNavItem[] {
@@ -107,28 +109,12 @@ export class AdminLayoutComponent implements OnInit {
     ];
   }
 
-  get leavesSubnav(): NestedNavItem[] {
-    const items: NestedNavItem[] = [{ label: 'All Leaves', route: '/leaves', startsWith: true }];
-    if (!this.isLeaveAdmin()) {
-      items.push({ label: 'Create Leave', route: '/leaves/new' });
-    }
-    return items;
-  }
-
   get reportsSubnav(): NestedNavItem[] {
     return [
       { label: 'Payroll Report', route: '/reports/payroll' },
       { label: 'Attendance Report', route: '/reports/attendance' },
       { label: 'Staff History Report', route: '/reports/staff-history' },
     ];
-  }
-
-  get ticketsSubnav(): NestedNavItem[] {
-    const items: NestedNavItem[] = [{ label: 'All Tickets', route: '/tickets', startsWith: true }];
-    if (!this.isTicketAdmin()) {
-      items.push({ label: 'Create Ticket', route: '/tickets/new' });
-    }
-    return items;
   }
 
   private getSidebarStaffId(): string | null {
@@ -199,7 +185,7 @@ export class AdminLayoutComponent implements OnInit {
   }
 
   hasNestedNav(route: string): boolean {
-    return ['/staff', '/attendance', '/reports', '/leaves', '/tickets'].includes(route);
+    return ['/staff', '/attendance', '/reports'].includes(route);
   }
 
   isNestedNavOpen(route: string): boolean {
@@ -210,10 +196,6 @@ export class AdminLayoutComponent implements OnInit {
         return this.showAttendanceSubnav;
       case '/reports':
         return this.showReportsSubnav;
-      case '/leaves':
-        return this.showLeavesSubnav;
-      case '/tickets':
-        return this.showTicketsSubnav;
       default:
         return false;
     }
@@ -259,7 +241,7 @@ export class AdminLayoutComponent implements OnInit {
   }
 
   private preloadSidebarStaffWorkspace(): void {
-    if (this.activeStaffWorkspaceId || !this.auth.hasPermission('staff:read')) {
+    if (this.activeStaffWorkspaceId || !this.auth.isAdminLike()) {
       return;
     }
 
@@ -274,11 +256,12 @@ export class AdminLayoutComponent implements OnInit {
     });
   }
 
-  private isLeaveAdmin(): boolean {
-    return this.auth.hasRole('admin') || this.auth.hasPermission('leave:approve') || this.auth.hasPermission('leave:update');
+  private canShowNavItem(item: NavItem): boolean {
+    const adminExperience = this.isAdminExperience();
+    if (item.adminOnly && !adminExperience) return false;
+    if (item.staffOnly && adminExperience) return false;
+    if (!item.permission) return true;
+    return this.auth.hasPermission(item.permission);
   }
 
-  private isTicketAdmin(): boolean {
-    return this.auth.hasRole('admin') || this.auth.hasPermission('ticket:update');
-  }
 }

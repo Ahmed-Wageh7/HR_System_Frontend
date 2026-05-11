@@ -67,21 +67,21 @@ import { format } from 'date-fns';
     .checkin-time {
       font-size: 56px; font-weight: 900; letter-spacing: -0.04em;
       font-variant-numeric: tabular-nums;
-      background: linear-gradient(135deg, var(--text-primary), var(--accent));
+      background: linear-gradient(135deg, var(--text-primary), var(--sidebar-active-text));
       -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     }
     .checkin-date { color: var(--text-secondary); font-size: 14px; margin-bottom: 32px; }
 
     .late-warning {
-      background: var(--warning-dim); color: var(--warning);
-      border: 1px solid rgba(245,158,11,0.2);
+      background: var(--sidebar-active-bg); color: var(--sidebar-active-text);
+      border: 1px solid var(--sidebar-active-border);
       padding: 10px 16px; border-radius: var(--radius-sm);
       display: flex; align-items: center; gap: 8px;
       font-size: 13px; font-weight: 600; margin-bottom: 20px;
     }
     .status-display {
       padding: 16px; border-radius: var(--radius); margin-bottom: 24px;
-      &.checked-in { background: var(--success-dim); color: var(--success); }
+      &.checked-in { background: var(--sidebar-active-bg); color: var(--sidebar-active-text); border: 1px solid var(--sidebar-active-border); }
       &.checked-out { background: var(--bg-elevated); color: var(--text-secondary); }
     }
     .status-icon { font-size: 28px; margin-bottom: 4px; }
@@ -89,14 +89,13 @@ import { format } from 'date-fns';
 
     .checkin-btn {
       width: 100%; padding: 20px;
-      background: var(--success); color: white;
-      border: none; border-radius: var(--radius);
+      background: var(--sidebar-active-bg); color: var(--sidebar-active-text); border: 1px solid var(--sidebar-active-border); border-radius: var(--radius);
       font-family: var(--font-sans); font-size: 18px; font-weight: 700;
       cursor: pointer; transition: var(--transition);
       display: flex; align-items: center; justify-content: center; gap: 12px;
-      &:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); box-shadow: 0 8px 24px rgba(16,185,129,0.3); }
+      &:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); box-shadow: var(--shadow-md); }
       &:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
-      &.checkout { background: var(--danger); &:hover:not(:disabled) { box-shadow: 0 8px 24px rgba(239,68,68,0.3); } }
+      &.checkout { background: var(--sidebar-active-bg); }
     }
     @media (max-width: 480px) {
       .checkin-card { padding: 32px 20px; }
@@ -188,7 +187,7 @@ export class CheckinComponent implements OnInit, OnDestroy {
     .checkin-time {
       font-size: 56px; font-weight: 900; letter-spacing: -0.04em;
       font-variant-numeric: tabular-nums;
-      background: linear-gradient(135deg, var(--text-primary), var(--danger));
+      background: linear-gradient(135deg, var(--text-primary), var(--sidebar-active-text));
       -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     }
     .checkin-date { color: var(--text-secondary); font-size: 14px; margin-bottom: 32px; }
@@ -200,13 +199,12 @@ export class CheckinComponent implements OnInit, OnDestroy {
     .status-sub { font-size: 12px; opacity: 0.8; margin-top: 4px; }
     .checkin-btn {
       width: 100%; padding: 20px;
-      background: var(--danger); color: white;
-      border: none; border-radius: var(--radius);
+      background: var(--sidebar-active-bg); color: var(--sidebar-active-text); border: 1px solid var(--sidebar-active-border); border-radius: var(--radius);
       font-family: var(--font-sans); font-size: 18px; font-weight: 700;
       cursor: pointer; transition: var(--transition);
       display: flex; align-items: center; justify-content: center; gap: 12px;
     }
-    .checkin-btn:hover:not(:disabled) { box-shadow: 0 8px 24px rgba(239,68,68,0.3); filter: brightness(1.06); transform: translateY(-1px); }
+    .checkin-btn:hover:not(:disabled) { box-shadow: var(--shadow-md); filter: brightness(1.06); transform: translateY(-1px); }
     .checkin-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
     @media (max-width: 480px) {
       .checkin-card { padding: 32px 20px; }
@@ -331,8 +329,8 @@ export class CheckoutComponent implements OnInit, OnDestroy {
   `,
   styles: [`
     .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-    tr.row-late td { background: rgba(245,158,11,0.03); }
-    tr.row-absent td { background: rgba(239,68,68,0.03); }
+    tr.row-late td { background: var(--sidebar-active-bg); }
+    tr.row-absent td { background: var(--sidebar-active-bg); }
     @media (max-width: 600px) { .stats-grid { grid-template-columns: 1fr; } }
   `]
 })

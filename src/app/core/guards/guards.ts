@@ -27,9 +27,16 @@ export const unsavedGuard: CanDeactivateFn<CanComponentDeactivate> = (component)
   return confirm('You have unsaved changes. Are you sure you want to leave?');
 };
 
-export const createPermissionGuard = (permission: string): CanActivateFn => () => {
+export const createPermissionGuard = (permission: string | string[]): CanActivateFn => () => {
   const auth = inject(AuthService);
   const router = inject(Router);
   if (auth.hasPermission(permission)) return true;
+  return router.createUrlTree(['/dashboard']);
+};
+
+export const adminGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+  if (auth.isAdminLike()) return true;
   return router.createUrlTree(['/dashboard']);
 };

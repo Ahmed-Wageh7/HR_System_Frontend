@@ -1,0 +1,130 @@
+    .workspace-loading {
+      min-height: 260px;
+      display: grid;
+      place-items: center;
+    }
+
+    .staff-hero {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 28px;
+      background:
+        linear-gradient(135deg, var(--sidebar-active-bg), transparent 42%),
+        linear-gradient(220deg, var(--sidebar-hover-bg), transparent 36%),
+        var(--bg-card);
+    }
+
+    .staff-hero-main {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .staff-avatar {
+      width: 68px;
+      height: 68px;
+      flex-shrink: 0;
+      font-size: 22px;
+      box-shadow: var(--shadow-md);
+    }
+
+    .staff-avatar-image {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .staff-hero-copy {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .hero-meta,
+    .staff-hero-actions,
+    .hero-stats {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .hero-stats {
+      margin-top: 4px;
+    }
+
+    .hero-stat {
+      min-width: 140px;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.02);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      font-size: 13px;
+    }
+
+    .hero-stat-label {
+      color: var(--text-muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 700;
+    }
+
+    .workspace-body {
+      min-height: 0;
+      max-height: calc(100vh - 280px);
+      overflow: auto;
+      padding-right: 4px;
+    }
+
+    .staff-edit-modal {
+      margin: 0;
+    }
+
+    @media (max-width: 900px) {
+      .staff-hero {
+        flex-direction: column;
+      }
+
+      .staff-hero-main {
+        width: 100%;
+      }
+
+      .staff-hero-actions {
+        width: 100%;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .staff-hero {
+        padding: 20px;
+      }
+
+      .staff-hero-main {
+        flex-wrap: wrap;
+      }
+
+      .hero-stat {
+        flex: 1 1 100%;
+      }
+
+      .staff-hero-actions .btn {
+        flex: 1 1 100%;
+        justify-content: center;
+      }
+
+      .workspace-body {
+        max-height: none;
+        overflow: visible;
+        padding-right: 0;
+      }
+    }

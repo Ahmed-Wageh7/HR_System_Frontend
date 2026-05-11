@@ -28,7 +28,7 @@ import { AuthService } from '../../core/services/auth.service';
             }
           </div>
           @if (errorMsg) {
-            <div class="error-alert" style="background:var(--danger-dim);border:1px solid rgba(239,68,68,.2);color:var(--danger);padding:10px 14px;border-radius:var(--radius-sm);font-size:13px;display:flex;align-items:center;gap:8px;margin-bottom:12px">
+            <div class="error-alert" style="background:var(--sidebar-active-bg);border:1px solid var(--sidebar-active-border);color:var(--sidebar-active-text);padding:10px 14px;border-radius:var(--radius-sm);font-size:13px;display:flex;align-items:center;gap:8px;margin-bottom:12px">
               {{ errorMsg }}
             </div>
           }
@@ -39,7 +39,7 @@ import { AuthService } from '../../core/services/auth.service';
         </form>
       } @else {
         <div style="text-align:center;padding:20px 0">
-          <span class="material-icons" style="font-size:56px;color:var(--success)">mark_email_read</span>
+          <span class="material-icons" style="font-size:56px;color:var(--sidebar-active-text)">mark_email_read</span>
           <h2 style="font-size:22px;font-weight:700;margin-top:16px">Check your email</h2>
           <p style="color:var(--text-secondary);margin-top:8px;font-size:14px">
             A password reset link has been sent to <strong>{{ form.get('email')?.value }}</strong>
@@ -106,12 +106,12 @@ export class ForgotPasswordComponent {
           <input type="checkbox" [(ngModel)]="showPwd" [ngModelOptions]="{standalone:true}"> Show password
         </label>
         @if (success) {
-          <div style="background:var(--success-dim);color:var(--success);padding:10px 14px;border-radius:var(--radius-sm);font-size:13px;margin-bottom:12px">
+          <div style="background:var(--sidebar-active-bg);color:var(--sidebar-active-text);padding:10px 14px;border-radius:var(--radius-sm);font-size:13px;margin-bottom:12px">
             Password reset! <a routerLink="/auth/login">Login here</a>
           </div>
         }
         @if (errorMsg) {
-          <div style="background:var(--danger-dim);color:var(--danger);padding:10px 14px;border-radius:var(--radius-sm);font-size:13px;margin-bottom:12px">{{ errorMsg }}</div>
+          <div style="background:var(--sidebar-active-bg);color:var(--sidebar-active-text);padding:10px 14px;border-radius:var(--radius-sm);font-size:13px;margin-bottom:12px">{{ errorMsg }}</div>
         }
         <button type="submit" class="btn btn-primary btn-lg" style="width:100%;justify-content:center" [disabled]="form.invalid || loading">
           @if (loading) { <span class="spinner"></span> }

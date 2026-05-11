@@ -1,0 +1,123 @@
+    <div class="section-stack">
+      <div class="card">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Manual Deductions</div>
+            <div class="section-subtitle">Create, update, delete, and review staff deductions.</div>
+          </div>
+          <button class="btn btn-secondary" [disabled]="saving" (click)="startCreate()">
+            <span class="material-icons" style="font-size:16px">add</span>
+            Add Deduction
+          </button>
+        </div>
+
+        <div class="deduction-summary">
+          <div class="summary-tile">
+            <span class="summary-label">Entries</span>
+            <strong>{{ deductions.length }}</strong>
+          </div>
+          <div class="summary-tile">
+            <span class="summary-label">Current Month</span>
+            <strong>{{ currentMonthCount }}</strong>
+          </div>
+          <div class="summary-tile">
+            <span class="summary-label">Total Amount</span>
+            <strong>{{ totalAmount | currencyFormat }}</strong>
+          </div>
+        </div>
+
+        @if (loading) {
+          <div class="section-loading"><div class="spinner" style="width:26px;height:26px"></div></div>
+        } @else if (deductions.length === 0) {
+          <div class="empty-state compact-empty">
+            <span class="material-icons empty-icon">receipt_long</span>
+            <div class="empty-title">No deductions added yet</div>
+          </div>
+        } @else {
+          <div class="data-table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Month</th>
+                  <th>Amount</th>
+                  <th>Reason</th>
+                  <th>Created</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (deduction of deductions; track deduction._id) {
+                  <tr>
+                    <td>{{ deduction.month }}</td>
+                    <td class="text-danger">{{ deduction.amount | currencyFormat }}</td>
+                    <td>{{ deduction.reason }}</td>
+                    <td>{{ deduction.createdAt | dateFormat }}</td>
+                    <td>
+                      <div class="table-actions">
+                        <button class="btn btn-ghost btn-sm btn-icon" [disabled]="saving" (click)="startEdit(deduction)">
+                          <span class="material-icons" style="font-size:14px">edit</span>
+                        </button>
+                        <button class="btn btn-danger btn-sm btn-icon" [disabled]="saving" (click)="deleteTarget = deduction">
+                          <span class="material-icons" style="font-size:14px">delete</span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+    </div>
+
+    @if (formOpen) {
+      <div class="modal-backdrop form-backdrop" (click)="resetForm()">
+        <div class="modal modal-form deduction-modal" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <div>
+              <div class="modal-title">{{ editingId ? 'Update Deduction' : 'Create Deduction' }}</div>
+              <div class="text-secondary mt-4" style="font-size:13px">
+                {{ editingId ? 'Edit the selected deduction entry.' : 'Add a new manual deduction for this staff member.' }}
+              </div>
+            </div>
+            <button class="btn btn-ghost btn-icon" [disabled]="saving" (click)="resetForm()">
+              <span class="material-icons">close</span>
+            </button>
+          </div>
+
+          <div class="editor-grid">
+            <div class="form-group">
+              <label>Month</label>
+              <input type="month" class="form-control" [(ngModel)]="draft.month">
+            </div>
+            <div class="form-group">
+              <label>Amount</label>
+              <input type="number" class="form-control" [(ngModel)]="draft.amount" min="0">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Reason</label>
+            <input type="text" class="form-control" [(ngModel)]="draft.reason" placeholder="Enter deduction reason">
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn btn-secondary" [disabled]="saving" (click)="resetForm()">Cancel</button>
+            <button class="btn btn-primary" [disabled]="saving" (click)="saveDeduction()">
+              {{ editingId ? 'Update Deduction' : 'Create Deduction' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    }
+
+    <app-confirm-dialog
+      [open]="!!deleteTarget"
+      title="Delete Deduction"
+      [message]="'Delete the deduction for ' + (deleteTarget?.month || '') + '?'"
+      confirmText="Delete"
+      confirmColor="danger"
+      (confirmed)="confirmDelete()"
+      (cancelled)="deleteTarget = null"
+    />

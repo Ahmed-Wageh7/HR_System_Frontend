@@ -3,8 +3,10 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
 const ICON_MAP: Record<string, string> = {
   account_balance: 'account_balance',
   account_circle: 'account_circle',
+  analytics: 'analytics',
   add: 'add',
   admin_panel_settings: 'admin_panel_settings',
+  assessment: 'assessment',
   arrow_back: 'arrow_back',
   beach_access: 'beach_access',
   check: 'check',
@@ -46,6 +48,7 @@ const ICON_MAP: Record<string, string> = {
   schedule: 'schedule',
   search: 'search',
   send: 'send',
+  settings: 'settings',
   tune: 'tune',
   upload: 'upload',
   visibility: 'visibility',
@@ -57,7 +60,7 @@ const ICON_MAP: Record<string, string> = {
 @Component({
   selector: 'app-icon',
   standalone: true,
-  template: `<span class="material-icons" [class.spin]="spin()" [class]="extraClass()" [style.fontSize]="size()" aria-hidden="true">{{ glyph() }}</span>`,
+  templateUrl: './icon.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class IconComponent {

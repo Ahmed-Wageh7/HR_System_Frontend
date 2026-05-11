@@ -8,235 +8,35 @@ import { ReportService } from '../../core/services/api.services';
 import { AuditLogService } from '../../core/services/api.services';
 import { DepartmentService } from '../../core/services/department.service';
 import { AttendanceRecord, AttendanceReport, Department, Staff } from '../../core/models';
-import { TimeAgoPipe } from '../../shared/pipes/pipes';
-import { CurrencyFormatPipe } from '../../shared/pipes/pipes';
+import { CurrencyFormatPipe, DateFormatPipe, TimeAgoPipe } from '../../shared/pipes/pipes';
 import { AuthService } from '../../core/services/auth.service';
 import { format } from 'date-fns';
+import { SocketService } from '../../core/services/socket.service';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterLink, TimeAgoPipe, CurrencyFormatPipe],
-  template: `
-    <div class="page-header">
-      <div>
-        <div class="page-title">Dashboard</div>
-        <div class="page-subtitle">{{ today }} - Welcome back, {{ firstName() }}</div>
-      </div>
-      <button class="btn btn-secondary" (click)="loadData()" [disabled]="loading">
-        <span class="material-icons" style="font-size:16px" [class.spin]="loading">refresh</span>
-        Refresh
-      </button>
-    </div>
-
-    @if (!hasAdminDashboardAccess()) {
-      <div class="card access-note">
-        <div class="access-note-icon">
-          <span class="material-icons">info</span>
-        </div>
-        <div>
-          <div class="fw-bold">Limited staff access</div>
-          <div class="access-note-copy">
-            You are signed in as staff, so admin dashboard data is hidden for this account.
-          </div>
-        </div>
-      </div>
-    } @else {
-      <!-- Stats Grid -->
-      <div class="stats-grid">
-        @if (loading) {
-          @for (i of [1,2,3,4,5,6]; track i) {
-            <div class="skeleton skeleton-card" style="height:100px"></div>
-          }
-        } @else {
-          <div class="stat-card stat-info" routerLink="/staff">
-            <div class="stat-label">Total Staff</div>
-            <div class="stat-value">{{ stats.totalStaff }}</div>
-            <div class="stat-icon"><span class="material-icons">people</span></div>
-          </div>
-          <div class="stat-card stat-success">
-            <div class="stat-label">Present Today</div>
-            <div class="stat-value">{{ stats.presentToday }}</div>
-            <div class="stat-icon"><span class="material-icons">check_circle</span></div>
-          </div>
-          <div class="stat-card stat-warning">
-            <div class="stat-label">Late Today</div>
-            <div class="stat-value">{{ stats.lateToday }}</div>
-            <div class="stat-icon"><span class="material-icons">schedule</span></div>
-          </div>
-          <div class="stat-card stat-danger">
-            <div class="stat-label">Absent Today</div>
-            <div class="stat-value">{{ stats.absentToday }}</div>
-            <div class="stat-icon"><span class="material-icons">person_off</span></div>
-          </div>
-          <div class="stat-card stat-warning" routerLink="/leaves">
-            <div class="stat-label">Pending Leaves</div>
-            <div class="stat-value">{{ stats.pendingLeaves }}</div>
-            <div class="stat-icon"><span class="material-icons">beach_access</span></div>
-          </div>
-          <div class="stat-card stat-info" routerLink="/salary">
-            <div class="stat-label">Unpaid Salaries</div>
-            <div class="stat-value">{{ stats.unpaidSalaries }}</div>
-            <div class="stat-icon"><span class="material-icons">payments</span></div>
-          </div>
-        }
-      </div>
-
-      <div class="dashboard-bottom">
-        <!-- Recent Audit Logs -->
-        <div class="card">
-          <div class="flex items-center justify-between mb-16">
-            <div class="fw-bold">Recent Activity</div>
-            <a routerLink="/audit-logs" class="btn btn-ghost" style="font-size:12px;padding:4px 10px">View all</a>
-          </div>
-          @if (loading) {
-            @for (i of [1,2,3,4,5]; track i) {
-              <div class="skeleton skeleton-text mb-8"></div>
-            }
-          } @else if (auditLogs.length === 0) {
-            <div style="color:var(--text-muted);font-size:13px;text-align:center;padding:20px">No recent activity</div>
-          } @else {
-            <div class="audit-list">
-              @for (log of auditLogs.slice(0, 5); track log._id) {
-                <div class="audit-row">
-                  <div class="audit-info">
-                    <span class="audit-action">{{ log.action }}</span>
-                    <span class="audit-resource">{{ log.resource }}</span>
-                  </div>
-                  <div class="audit-meta">
-                    <span class="badge" [class.badge-success]="log.status === 'success'" [class.badge-danger]="log.status === 'fail'">{{ log.status }}</span>
-                    <span class="text-muted" style="font-size:11px">{{ log.createdAt | timeAgo }}</span>
-                  </div>
-                </div>
-              }
-            </div>
-          }
-        </div>
-
-        <!-- Department Breakdown -->
-        <div class="card">
-          <div class="fw-bold mb-16">Department Breakdown</div>
-          @if (loading) {
-            <div class="skeleton skeleton-card"></div>
-          } @else {
-            <div class="dept-list">
-              @for (dept of departments; track dept._id) {
-                <div class="dept-row">
-                  <div class="dept-name">{{ dept.name }}</div>
-                  <div class="dept-bar-wrap">
-                    <div class="dept-bar" [style.width.%]="getDeptPercent(dept.staffCount || 0)"></div>
-                  </div>
-                  <div class="dept-count">{{ dept.staffCount || 0 }}</div>
-                </div>
-              }
-              @if (departments.length === 0) {
-                <div style="color:var(--text-muted);font-size:13px;text-align:center;padding:20px">No departments found</div>
-              }
-            </div>
-          }
-          </div>
-      </div>
-    }
-  `,
-  styles: [`
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-      gap: 16px;
-      margin-bottom: 24px;
-    }
-    .stat-card {
-      cursor: pointer;
-      min-height: 120px;
-      padding-right: 68px;
-    }
-
-    .stat-card .stat-label,
-    .stat-card .stat-value {
-      position: relative;
-      z-index: 1;
-    }
-
-    .stat-card .stat-icon {
-      z-index: 0;
-    }
-
-    .access-note {
-      display: flex;
-      align-items: flex-start;
-      gap: 14px;
-      margin-bottom: 24px;
-      background:
-        linear-gradient(145deg, rgba(56, 189, 248, 0.12), transparent 38%),
-        var(--bg-card);
-    }
-
-    .access-note-icon {
-      width: 42px;
-      height: 42px;
-      border-radius: 14px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      background: var(--info-dim);
-      color: var(--info);
-      flex-shrink: 0;
-    }
-
-    .access-note-copy {
-      color: var(--text-secondary);
-      font-size: 14px;
-      margin-top: 4px;
-    }
-
-    .dashboard-bottom {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-    }
-    @media (max-width: 768px) {
-      .dashboard-bottom { grid-template-columns: 1fr; }
-    }
-
-    .audit-list { display: flex; flex-direction: column; gap: 8px; }
-    .audit-row {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 10px 12px; background: var(--bg-elevated); border-radius: var(--radius-sm);
-      font-size: 13px;
-    }
-    .audit-info { display: flex; flex-direction: column; gap: 2px; }
-    .audit-action { font-weight: 600; text-transform: capitalize; }
-    .audit-resource { color: var(--text-muted); font-size: 11px; }
-    .audit-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
-
-    .dept-list { display: flex; flex-direction: column; gap: 12px; }
-    .dept-row { display: flex; align-items: center; gap: 12px; }
-    .dept-name { width: 120px; font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .dept-bar-wrap { flex: 1; height: 6px; background: var(--bg-elevated); border-radius: 3px; overflow: hidden; }
-    .dept-bar { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.5s ease; }
-    .dept-count { width: 30px; text-align: right; font-size: 13px; color: var(--text-secondary); }
-
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .spin { animation: spin 1s linear infinite; }
-  `]
+  imports: [CommonModule, RouterLink, TimeAgoPipe, CurrencyFormatPipe, DateFormatPipe],
+  templateUrl: './dashboard.component.html',
+  styleUrl: './dashboard.component.scss'
 })
 export class DashboardComponent implements OnInit, OnDestroy {
   readonly auth = inject(AuthService);
   readonly firstName = computed(() => this.auth.currentUser()?.name.split(' ')[0] ?? 'Team');
-  readonly hasAdminDashboardAccess = computed(() =>
-    this.auth.hasPermission('staff:read') ||
-    this.auth.hasPermission('department:read') ||
-    this.auth.hasPermission('audit:read') ||
-    this.auth.hasPermission('*')
+  readonly hasAdminDashboardAccess = computed(() => this.auth.isAdminLike());
+  readonly shouldShowLimitedAccess = computed(() =>
+    !!this.auth.currentUser() && !this.hasAdminDashboardAccess()
   );
   private readonly staffService = inject(StaffService);
   private readonly leaveService = inject(LeaveService);
   private readonly reportService = inject(ReportService);
   private readonly auditService = inject(AuditLogService);
   private readonly deptService = inject(DepartmentService);
+  readonly socket = inject(SocketService);
   private cachedStaff: Staff[] = [];
 
   loading = true;
+  staffLoading = true;
   today = format(new Date(), 'EEEE, MMMM d, yyyy');
   currentMonth = format(new Date(), 'yyyy-MM');
 
@@ -251,6 +51,17 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   auditLogs: { _id: string; action: string; resource: string; status: string; createdAt: string }[] = [];
   departments: { _id: string; name: string; staffCount?: number }[] = [];
+  staffDashboard = {
+    attendanceStatus: 'Ready to check in',
+    remainingLeaveBalance: 0,
+    pendingLeaves: 0,
+    approvedLeaves: 0,
+    rejectedLeaves: 0,
+    recentLeaves: [] as { _id: string; reason: string; status: string; startDate: string; endDate: string }[],
+    upcomingPayrollDate: this.getUpcomingPayrollDate(),
+    assignedTickets: 0,
+    monthlyAttendanceScore: 0,
+  };
 
   private refreshSub?: Subscription;
 
@@ -264,18 +75,18 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   loadData(): void {
+    if (!this.auth.currentUser() && this.auth.isAuthenticated()) {
+      this.loading = true;
+      this.auth.loadProfile().subscribe({
+        next: () => this.loadData(),
+        error: () => { this.loading = false; },
+      });
+      return;
+    }
+
     if (!this.hasAdminDashboardAccess()) {
       this.loading = false;
-      this.auditLogs = [];
-      this.departments = [];
-      this.stats = {
-        totalStaff: 0,
-        presentToday: 0,
-        lateToday: 0,
-        absentToday: 0,
-        pendingLeaves: 0,
-        unpaidSalaries: 0,
-      };
+      this.loadStaffDashboard();
       return;
     }
 
@@ -315,6 +126,35 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.loadLeaves();
     this.loadAuditLogs();
     this.loadPayroll();
+  }
+
+  loadStaffDashboard(): void {
+    this.staffLoading = true;
+    this.leaveService.getMyLeaves().pipe(
+      timeout(6000),
+      catchError(() => of({ data: [] }))
+    ).subscribe({
+      next: (results) => {
+        const leaves = this.normalizeArray<{ _id: string; reason: string; status: string; startDate: string; endDate: string }>(results.data);
+        this.staffDashboard = {
+          ...this.staffDashboard,
+          remainingLeaveBalance: this.currentUserLeaveBalance(),
+          pendingLeaves: leaves.filter((leave) => leave.status === 'pending').length,
+          approvedLeaves: leaves.filter((leave) => leave.status === 'approved').length,
+          rejectedLeaves: leaves.filter((leave) => leave.status === 'rejected').length,
+          recentLeaves: leaves.slice(0, 4),
+          monthlyAttendanceScore: this.estimateAttendanceScore(leaves),
+        };
+        this.staffLoading = false;
+      },
+      error: () => {
+        this.staffDashboard = {
+          ...this.staffDashboard,
+          remainingLeaveBalance: this.currentUserLeaveBalance(),
+        };
+        this.staffLoading = false;
+      },
+    });
   }
 
   private loadAttendanceFallback(staff: Staff[]): void {
@@ -434,5 +274,22 @@ export class DashboardComponent implements OnInit, OnDestroy {
   getDeptPercent(count: number): number {
     const max = Math.max(...this.departments.map(d => d.staffCount || 0), 1);
     return (count / max) * 100;
+  }
+
+  private currentUserLeaveBalance(): number {
+    const user = this.auth.currentUser() as { annualLeaveBalance?: number } | null;
+    return user?.annualLeaveBalance ?? 21;
+  }
+
+  private estimateAttendanceScore(leaves: { status: string }[]): number {
+    const approvedLeaveCount = leaves.filter((leave) => leave.status === 'approved').length;
+    return Math.max(72, 96 - approvedLeaveCount * 3);
+  }
+
+  private getUpcomingPayrollDate(): string {
+    const date = new Date();
+    date.setMonth(date.getMonth() + 1, 1);
+    date.setDate(0);
+    return format(date, 'MMM d, yyyy');
   }
 }

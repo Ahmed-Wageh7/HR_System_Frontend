@@ -49,11 +49,16 @@ export class AuthService {
     );
   }
 
-  hasPermission(permission: string): boolean {
+  hasPermission(permission: string | string[]): boolean {
+    if (Array.isArray(permission)) {
+      return permission.some((item) => this.hasPermission(item));
+    }
+
     const user = this.currentUser();
     if (!user) return false;
     const perms = this.collectPermissions(user);
-    return perms.includes(permission) || perms.includes("*");
+    const allowed = new Set(perms.flatMap((item) => this.permissionVariants(item)));
+    return allowed.has(permission) || allowed.has("*") || this.permissionVariants(permission).some((item) => allowed.has(item));
   }
 
   hasRole(roleName: string): boolean {
@@ -79,6 +84,32 @@ export class AuthService {
     }
 
     return roleNames.has(normalizedRoleName);
+  }
+
+  hasAnyRole(roleNames: string[]): boolean {
+    return roleNames.some((roleName) => this.hasRole(roleName));
+  }
+
+  isAdminLike(): boolean {
+    return (
+      this.hasAnyRole(["admin", "superadmin", "owner", "hr", "manager"]) ||
+      this.hasPermission([
+        "*",
+        "staff.create",
+        "staff.edit",
+        "staff.delete",
+        "staff:create",
+        "staff:update",
+        "staff:delete",
+        "payroll.manage",
+        "salary:pay",
+        "roles.manage",
+        "role:create",
+        "role:update",
+        "role:delete",
+        "audit:read",
+      ])
+    );
   }
 
   login(credentials: { email: string; password: string }): Observable<void> {
@@ -153,10 +184,35 @@ export class AuthService {
     }
 
     if (!accessToken && refreshToken) {
-      return this.refreshToken();
+      return this.refreshToken().pipe(
+        catchError(() => {
+          this.clearInvalidSession();
+          return of(null);
+        }),
+      );
     }
 
-    return this.loadProfile().pipe(map(() => accessToken));
+    if (this.tokenService.isTokenExpired(accessToken) && refreshToken) {
+      return this.refreshToken().pipe(
+        catchError(() => {
+          this.clearInvalidSession();
+          return of(null);
+        }),
+      );
+    }
+
+    if (this.tokenService.isTokenExpired(accessToken)) {
+      this.clearInvalidSession();
+      return of(null);
+    }
+
+    return this.loadProfile().pipe(
+      map(() => accessToken),
+      catchError(() => {
+        this.clearInvalidSession();
+        return of(null);
+      }),
+    );
   }
 
   storeRedirectUrl(url: string): void {
@@ -273,6 +329,34 @@ export class AuthService {
     return Array.from(permissions);
   }
 
+  private permissionVariants(permission: string): string[] {
+    const normalized = permission.trim();
+    if (!normalized) return [];
+
+    const variants = new Set<string>([normalized]);
+    if (normalized.includes(".")) {
+      variants.add(normalized.replace(/\./g, ":"));
+    }
+    if (normalized.includes(":")) {
+      variants.add(normalized.replace(/:/g, "."));
+    }
+
+    const [resource, action] = normalized.split(/[.:]/);
+    if (resource && action) {
+      const legacyActionMap: Record<string, string[]> = {
+        edit: ["update"],
+        manage: ["create", "read", "update", "delete", "pay", "adjust"],
+        export: ["read"],
+      };
+      for (const mappedAction of legacyActionMap[action] ?? []) {
+        variants.add(`${resource}.${mappedAction}`);
+        variants.add(`${resource}:${mappedAction}`);
+      }
+    }
+
+    return Array.from(variants);
+  }
+
   private normalizeAvatar(avatar: unknown): string | null {
     if (typeof avatar === "string") {
       return avatar;
@@ -303,5 +387,11 @@ export class AuthService {
     this.setCurrentUser(null);
     sessionStorage.removeItem(this.redirectStorageKey);
     this.router.navigateByUrl(redirectTo);
+  }
+
+  private clearInvalidSession(): void {
+    this.tokenService.clearTokens();
+    this.setCurrentUser(null);
+    sessionStorage.removeItem(this.redirectStorageKey);
   }
 }

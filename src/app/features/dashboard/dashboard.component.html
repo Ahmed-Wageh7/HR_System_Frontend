@@ -1,0 +1,209 @@
+<div class="page-header">
+  <div>
+    <div class="page-title">{{ hasAdminDashboardAccess() ? 'Admin Dashboard' : 'My Workspace' }}</div>
+    <div class="page-subtitle">{{ today }} - Welcome back, {{ firstName() }}</div>
+  </div>
+</div>
+
+@if (hasAdminDashboardAccess()) {
+  <section class="dashboard-hero admin-hero">
+    <div>
+      <div class="hero-kicker">Enterprise command center</div>
+      <div class="hero-title">Company-wide HR operations, payroll, and activity monitoring</div>
+    </div>
+    <div class="hero-actions">
+      <a routerLink="/analytics" class="btn btn-primary">Analytics</a>
+      <a routerLink="/reports/payroll" class="btn btn-secondary">Export Reports</a>
+    </div>
+  </section>
+
+  <div class="stats-grid">
+    @if (loading) {
+      @for (i of [1,2,3,4,5,6]; track i) {
+        <div class="skeleton skeleton-card" style="height:100px"></div>
+      }
+    } @else {
+      <div class="stat-card stat-info" routerLink="/staff">
+        <div class="stat-label">Total Employees</div>
+        <div class="stat-value">{{ stats.totalStaff }}</div>
+        <div class="stat-icon"><span class="material-icons">people</span></div>
+      </div>
+      <div class="stat-card stat-success" routerLink="/staff">
+        <div class="stat-label">Active Employees</div>
+        <div class="stat-value">{{ stats.presentToday + stats.absentToday }}</div>
+        <div class="stat-icon"><span class="material-icons">badge</span></div>
+      </div>
+      <div class="stat-card stat-danger">
+        <div class="stat-label">Absent Today</div>
+        <div class="stat-value">{{ stats.absentToday }}</div>
+        <div class="stat-icon"><span class="material-icons">person_off</span></div>
+      </div>
+      <div class="stat-card stat-warning">
+        <div class="stat-label">Late Today</div>
+        <div class="stat-value">{{ stats.lateToday }}</div>
+        <div class="stat-icon"><span class="material-icons">schedule</span></div>
+      </div>
+      <div class="stat-card stat-warning" routerLink="/leaves">
+        <div class="stat-label">Pending Leaves</div>
+        <div class="stat-value">{{ stats.pendingLeaves }}</div>
+        <div class="stat-icon"><span class="material-icons">beach_access</span></div>
+      </div>
+      <div class="stat-card stat-info" routerLink="/salary">
+        <div class="stat-label">Payroll Pending</div>
+        <div class="stat-value">{{ stats.unpaidSalaries }}</div>
+        <div class="stat-icon"><span class="material-icons">payments</span></div>
+      </div>
+    }
+  </div>
+
+  <div class="insight-grid">
+    <div class="card">
+      <div class="flex items-center justify-between mb-16">
+        <div class="fw-bold">Attendance Heatmap</div>
+        <a routerLink="/analytics" class="btn btn-ghost" style="font-size:12px;padding:4px 10px">Open analytics</a>
+      </div>
+      <div class="heatmap-grid">
+        @for (cell of [82,88,71,94,77,90,84,69,96,81,73,87,92,78,85,89,74,91,83,80]; track $index) {
+          <div class="heatmap-cell" [style.opacity]="cell / 100"></div>
+        }
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="fw-bold mb-16">Salary Trend</div>
+      <div class="trend-chart">
+        @for (bar of [42,58,53,72,65,81,77,88]; track $index) {
+          <div class="trend-bar" [style.height.%]="bar"></div>
+        }
+      </div>
+    </div>
+  </div>
+
+  <div class="dashboard-bottom">
+    <div class="card">
+      <div class="flex items-center justify-between mb-16">
+        <div class="fw-bold">Recent Activity</div>
+        <a routerLink="/audit-logs" class="btn btn-ghost" style="font-size:12px;padding:4px 10px">View all</a>
+      </div>
+      @if (loading) {
+        @for (i of [1,2,3,4,5]; track i) {
+          <div class="skeleton skeleton-text mb-8"></div>
+        }
+      } @else if (auditLogs.length === 0) {
+        <div style="color:var(--text-muted);font-size:13px;text-align:center;padding:20px">No recent activity</div>
+      } @else {
+        <div class="audit-list">
+          @for (log of auditLogs.slice(0, 5); track log._id) {
+            <div class="audit-row">
+              <div class="audit-info">
+                <span class="audit-action">{{ log.action }}</span>
+                <span class="audit-resource">{{ log.resource }}</span>
+              </div>
+              <div class="audit-meta">
+                <span class="badge" [class.badge-success]="log.status === 'success'" [class.badge-danger]="log.status === 'fail'">{{ log.status }}</span>
+                <span class="text-muted" style="font-size:11px">{{ log.createdAt | timeAgo }}</span>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </div>
+
+    <div class="card">
+      <div class="fw-bold mb-16">Department Performance</div>
+      @if (loading) {
+        <div class="skeleton skeleton-card"></div>
+      } @else {
+        <div class="dept-list">
+          @for (dept of departments; track dept._id) {
+            <div class="dept-row">
+              <div class="dept-name">{{ dept.name }}</div>
+              <div class="dept-bar-wrap">
+                <div class="dept-bar" [style.width.%]="getDeptPercent(dept.staffCount || 0)"></div>
+              </div>
+              <div class="dept-count">{{ dept.staffCount || 0 }}</div>
+            </div>
+          }
+          @if (departments.length === 0) {
+            <div style="color:var(--text-muted);font-size:13px;text-align:center;padding:20px">No departments found</div>
+          }
+        </div>
+      }
+    </div>
+  </div>
+} @else {
+  <section class="dashboard-hero staff-hero">
+    <div>
+      <div class="hero-kicker">Personal workspace</div>
+      <div class="hero-title">Your attendance, leave requests, salary timeline, and notifications</div>
+    </div>
+    <div class="hero-actions">
+      <a routerLink="/attendance/checkin" class="btn btn-primary">Check In</a>
+      <a routerLink="/attendance/checkout" class="btn btn-secondary">Check Out</a>
+    </div>
+  </section>
+
+  <div class="stats-grid staff-stats">
+    @if (staffLoading) {
+      @for (i of [1,2,3,4]; track i) {
+        <div class="skeleton skeleton-card" style="height:100px"></div>
+      }
+    } @else {
+      <div class="stat-card stat-success">
+        <div class="stat-label">Today's Status</div>
+        <div class="stat-value staff-status">{{ staffDashboard.attendanceStatus }}</div>
+        <div class="stat-icon"><span class="material-icons">fingerprint</span></div>
+      </div>
+      <div class="stat-card stat-info" routerLink="/leaves">
+        <div class="stat-label">Remaining Leave</div>
+        <div class="stat-value">{{ staffDashboard.remainingLeaveBalance }}</div>
+        <div class="stat-icon"><span class="material-icons">event_available</span></div>
+      </div>
+      <div class="stat-card stat-warning">
+        <div class="stat-label">Payroll Date</div>
+        <div class="stat-value staff-date">{{ staffDashboard.upcomingPayrollDate }}</div>
+        <div class="stat-icon"><span class="material-icons">payments</span></div>
+      </div>
+      <div class="stat-card stat-info" routerLink="/notifications">
+        <div class="stat-label">Unread Notifications</div>
+        <div class="stat-value">{{ socket.unreadCount() }}</div>
+        <div class="stat-icon"><span class="material-icons">notifications</span></div>
+      </div>
+    }
+  </div>
+
+  <div class="dashboard-bottom">
+    <div class="card">
+      <div class="fw-bold mb-16">Monthly Attendance Summary</div>
+      <div class="attendance-score">
+        <div class="score-ring">
+          <span>{{ staffDashboard.monthlyAttendanceScore }}%</span>
+        </div>
+        <div>
+          <div class="fw-bold">Attendance performance</div>
+          <div class="text-muted" style="font-size:13px">Based on your current month activity and approved leave records.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="fw-bold mb-16">Leave Request Status</div>
+      <div class="leave-status-grid">
+        <div><strong>{{ staffDashboard.pendingLeaves }}</strong><span>Pending</span></div>
+        <div><strong>{{ staffDashboard.approvedLeaves }}</strong><span>Approved</span></div>
+        <div><strong>{{ staffDashboard.rejectedLeaves }}</strong><span>Rejected</span></div>
+      </div>
+      <div class="audit-list mt-16">
+        @for (leave of staffDashboard.recentLeaves; track leave._id) {
+          <div class="audit-row">
+            <div class="audit-info">
+              <span class="audit-action">{{ leave.reason }}</span>
+              <span class="audit-resource">{{ leave.startDate | dateFormat }} - {{ leave.endDate | dateFormat }}</span>
+            </div>
+            <span class="badge" [class.badge-warning]="leave.status === 'pending'" [class.badge-success]="leave.status === 'approved'" [class.badge-danger]="leave.status === 'rejected'">{{ leave.status }}</span>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+}

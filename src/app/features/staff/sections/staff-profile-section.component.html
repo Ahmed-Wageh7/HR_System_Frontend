@@ -1,0 +1,41 @@
+    @if (loading) {
+      <div class="card section-loading">
+        <div class="spinner" style="width:28px;height:28px"></div>
+      </div>
+    } @else if (staff) {
+      <div class="profile-grid">
+        <div class="card">
+          <div class="section-title">Staff Information</div>
+          <div class="info-grid">
+            <div class="info-item"><span class="info-label">Full Name</span><span>{{ staff.user.name }}</span></div>
+            <div class="info-item"><span class="info-label">Employee Code</span><span>{{ staff.employeeCode || '—' }}</span></div>
+            <div class="info-item"><span class="info-label">Email</span><span>{{ staff.user.email }}</span></div>
+            <div class="info-item"><span class="info-label">Phone</span><span>{{ staff.user.phone || '—' }}</span></div>
+            <div class="info-item"><span class="info-label">Department</span><span>{{ staff.department?.name || '—' }}</span></div>
+            <div class="info-item"><span class="info-label">Position</span><span>{{ staff.position || '—' }}</span></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="section-title">Employment Snapshot</div>
+          <div class="stat-stack">
+            <div class="mini-stat">
+              <span class="info-label">Daily Salary</span>
+              <strong>{{ staff.dailySalary | currencyFormat }}</strong>
+            </div>
+            <div class="mini-stat">
+              <span class="info-label">Join Date</span>
+              <strong>{{ staff.joinDate | dateFormat }}</strong>
+            </div>
+            <div class="mini-stat">
+              <span class="info-label">Annual Leave Balance</span>
+              <strong>{{ staff.annualLeaveBalance ?? 0 }} days</strong>
+            </div>
+            <div class="mini-stat">
+              <span class="info-label">Last Update</span>
+              <strong>{{ staff.updatedAt | dateFormat:'MMM d, yyyy' }}</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+    }

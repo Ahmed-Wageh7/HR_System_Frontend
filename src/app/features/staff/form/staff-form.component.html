@@ -1,0 +1,91 @@
+    @if (!embedded) {
+      <div class="page-header">
+        <div class="flex items-center gap-12">
+          <a routerLink="/staff" class="btn btn-ghost btn-icon">
+            <span class="material-icons">arrow_back</span>
+          </a>
+          <div>
+            <div class="page-title">{{ isEdit ? 'Edit Staff' : 'Add New Staff' }}</div>
+            <div class="page-subtitle">{{ isEdit ? 'Update staff member details' : 'Create a new employee record' }}</div>
+          </div>
+        </div>
+      </div>
+    }
+
+    <form [formGroup]="form" (ngSubmit)="onSubmit()" [style.max-width]="embedded ? '100%' : '700px'" [class.embedded-form]="embedded">
+      <!-- Personal Info -->
+      <div class="card" [class.mb-16]="!embedded" [class.embedded-card]="embedded">
+        <div class="fw-bold mb-16">Personal Information</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Full Name *</label>
+            <input type="text" class="form-control" formControlName="name" placeholder="Ahmed Mohamed" [attr.readonly]="isEdit || null">
+            @if (f['name'].invalid && f['name'].touched) {
+              <span class="field-error"><span class="material-icons" style="font-size:14px">error_outline</span>Full name is required</span>
+            }
+          </div>
+          <div class="form-group">
+            <label>Email Address *</label>
+            <input type="email" class="form-control" formControlName="email" placeholder="ahmed@company.com" [attr.readonly]="isEdit || null">
+            @if (f['email'].invalid && f['email'].touched) {
+              <span class="field-error"><span class="material-icons" style="font-size:14px">error_outline</span>Valid email is required</span>
+            }
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Phone</label>
+            <input type="tel" class="form-control" formControlName="phone" placeholder="+20 1000000000" [attr.readonly]="isEdit || null">
+          </div>
+        </div>
+      </div>
+
+      <!-- Employment Info -->
+      <div class="card" [class.mb-16]="!embedded" [class.embedded-card]="embedded">
+        <div class="fw-bold mb-16">Employment Details</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Department</label>
+            <select class="form-control" formControlName="department">
+              <option value="">No Department</option>
+              @for (d of departments; track d._id) {
+                <option [value]="d._id">{{ d.name }}</option>
+              }
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Position</label>
+            <input type="text" class="form-control" formControlName="position" placeholder="e.g. Senior Developer">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Daily Salary (EGP) *</label>
+            <input type="number" class="form-control" formControlName="dailySalary" placeholder="500" min="0">
+            @if (f['dailySalary'].invalid && f['dailySalary'].touched) {
+              <span class="field-error"><span class="material-icons" style="font-size:14px">error_outline</span>Daily salary is required</span>
+            }
+          </div>
+          <div class="form-group">
+            <label>Join Date</label>
+            <input type="date" class="form-control" formControlName="joinDate">
+          </div>
+        </div>
+        @if (isEdit) {
+          <div class="form-group">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+              <input type="checkbox" formControlName="isActive"> Active Employee
+            </label>
+          </div>
+        }
+      </div>
+
+      <div class="flex gap-8" [class.embedded-actions]="embedded">
+        <button type="submit" class="btn btn-primary btn-lg" [disabled]="form.invalid || submitting">
+          @if (submitting) { <span class="spinner"></span> }
+          <span class="material-icons" style="font-size:18px">{{ isEdit ? 'save' : 'person_add' }}</span>
+          {{ isEdit ? 'Save Changes' : 'Create Staff Member' }}
+        </button>
+        <button type="button" class="btn btn-secondary btn-lg" (click)="onCancel()">Cancel</button>
+      </div>
+    </form>

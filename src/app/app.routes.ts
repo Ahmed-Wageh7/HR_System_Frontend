@@ -1,6 +1,6 @@
 import { Routes } from '@angular/router';
 import { AdminLayoutComponent } from './layout/admin-layout/admin-layout.component';
-import { authGuard, guestGuard } from './core/guards/guards';
+import { adminGuard, authGuard, guestGuard } from './core/guards/guards';
 
 export const appRoutes: Routes = [
   // Auth routes
@@ -26,6 +26,7 @@ export const appRoutes: Routes = [
       // Staff
       {
         path: 'staff',
+        canActivate: [adminGuard],
         loadChildren: () => import('./features/staff/staff.routes').then(m => m.staffRoutes),
       },
 
@@ -33,6 +34,7 @@ export const appRoutes: Routes = [
       {
         path: 'attendance',
         title: 'Attendance',
+        canActivate: [adminGuard],
         loadComponent: () => import('./features/attendance/attendance.components').then(m => m.AttendanceListComponent),
       },
       {
@@ -50,6 +52,7 @@ export const appRoutes: Routes = [
       {
         path: 'salary',
         title: 'Salary Overview',
+        canActivate: [adminGuard],
         loadComponent: () => import('./features/salary/salary-overview.component').then(m => m.SalaryOverviewComponent),
       },
 
@@ -57,16 +60,19 @@ export const appRoutes: Routes = [
       {
         path: 'reports/payroll',
         title: 'Payroll Report',
-        loadComponent: () => import('./features/features.components').then(m => m.PayrollReportComponent),
+        canActivate: [adminGuard],
+        loadComponent: () => import('./features/reports/payroll-report.component').then(m => m.PayrollReportComponent),
       },
       {
         path: 'reports/attendance',
         title: 'Attendance Report',
+        canActivate: [adminGuard],
         loadComponent: () => import('./features/features.components').then(m => m.AttendanceReportComponent),
       },
       {
         path: 'reports/staff-history',
         title: 'Staff History Report',
+        canActivate: [adminGuard],
         loadComponent: () => import('./features/features.components').then(m => m.StaffHistoryReportComponent),
       },
       {
@@ -96,6 +102,7 @@ export const appRoutes: Routes = [
       {
         path: 'departments',
         title: 'Departments',
+        canActivate: [adminGuard],
         loadComponent: () => import('./features/features.components').then(m => m.DeptListComponent),
       },
 
@@ -103,6 +110,7 @@ export const appRoutes: Routes = [
       {
         path: 'roles',
         title: 'Roles',
+        canActivate: [adminGuard],
         loadComponent: () => import('./features/features.components').then(m => m.RoleListComponent),
       },
 
@@ -110,7 +118,27 @@ export const appRoutes: Routes = [
       {
         path: 'audit-logs',
         title: 'Audit Logs',
+        canActivate: [adminGuard],
         loadComponent: () => import('./features/features.components').then(m => m.AuditListComponent),
+      },
+
+      // Enterprise
+      {
+        path: 'analytics',
+        title: 'Enterprise Analytics',
+        canActivate: [adminGuard],
+        loadComponent: () => import('./features/features.components').then(m => m.EnterpriseAnalyticsComponent),
+      },
+      {
+        path: 'notifications',
+        title: 'Notifications',
+        loadComponent: () => import('./features/features.components').then(m => m.NotificationCenterComponent),
+      },
+      {
+        path: 'company-settings',
+        title: 'Company Settings',
+        canActivate: [adminGuard],
+        loadComponent: () => import('./features/features.components').then(m => m.CompanySettingsComponent),
       },
 
       // Tickets

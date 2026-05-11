@@ -44,7 +44,7 @@
       </div>
 
       <nav class="sidebar-nav">
-        @for (item of navItems; track item.route) {
+        @for (item of visibleNavItems(); track item.route) {
           <div class="nav-group">
             <a
               class="nav-item"
@@ -96,39 +96,9 @@
               </div>
             }
 
-            @if (item.route === '/leaves' && showLeavesSubnav) {
-              <div class="nested-nav">
-                @for (subItem of leavesSubnav; track subItem.route) {
-                  <a
-                    class="nested-nav-item"
-                    [class.active]="isNestedNavMatch(subItem)"
-                    [routerLink]="subItem.route"
-                    (click)="handleNavClick()"
-                  >
-                    <span>{{ subItem.label }}</span>
-                  </a>
-                }
-              </div>
-            }
-
             @if (item.route === '/reports' && showReportsSubnav) {
               <div class="nested-nav">
                 @for (subItem of reportsSubnav; track subItem.route) {
-                  <a
-                    class="nested-nav-item"
-                    [class.active]="isNestedNavMatch(subItem)"
-                    [routerLink]="subItem.route"
-                    (click)="handleNavClick()"
-                  >
-                    <span>{{ subItem.label }}</span>
-                  </a>
-                }
-              </div>
-            }
-
-            @if (item.route === '/tickets' && showTicketsSubnav) {
-              <div class="nested-nav">
-                @for (subItem of ticketsSubnav; track subItem.route) {
                   <a
                     class="nested-nav-item"
                     [class.active]="isNestedNavMatch(subItem)"

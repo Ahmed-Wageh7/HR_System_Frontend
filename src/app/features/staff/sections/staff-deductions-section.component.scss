@@ -1,0 +1,87 @@
+    .section-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .section-header,
+    .table-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .section-header {
+      margin-bottom: 16px;
+    }
+
+    .section-title {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .section-subtitle {
+      color: var(--text-muted);
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
+    .deduction-summary {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .summary-tile {
+      padding: 14px 16px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, var(--sidebar-active-bg), transparent), var(--bg-elevated);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .summary-label {
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .editor-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .deduction-modal {
+      width: min(100%, 560px);
+      max-width: 560px;
+    }
+
+    .section-loading {
+      min-height: 180px;
+      display: grid;
+      place-items: center;
+    }
+
+    .data-table-wrapper {
+      max-height: min(52vh, 520px);
+      overflow: auto;
+    }
+
+    .compact-empty {
+      padding: 28px 18px;
+    }
+
+    @media (max-width: 640px) {
+      .deduction-summary,
+      .editor-grid {
+        grid-template-columns: 1fr;
+      }
+    }

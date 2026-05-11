@@ -5,32 +5,7 @@ import { CommonModule } from '@angular/common';
   selector: 'app-confirm-dialog',
   standalone: true,
   imports: [CommonModule],
-  template: `
-    @if (open) {
-      <div class="modal-backdrop" (click)="onCancel()">
-        <div class="modal" (click)="$event.stopPropagation()">
-          <div class="modal-header">
-            <div>
-              <div class="modal-title">{{ title }}</div>
-              <div class="text-secondary mt-4" style="font-size:13px">{{ message }}</div>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button class="btn btn-secondary" (click)="onCancel()">Cancel</button>
-            <button
-              class="btn"
-              [class.btn-danger]="confirmColor === 'danger'"
-              [class.btn-warning]="confirmColor === 'warning'"
-              [class.btn-primary]="confirmColor === 'primary'"
-              (click)="onConfirm()"
-            >
-              {{ confirmText }}
-            </button>
-          </div>
-        </div>
-      </div>
-    }
-  `,
+  templateUrl: './confirm-dialog.component.html',
 })
 export class ConfirmDialogComponent {
   @Input() open = false;

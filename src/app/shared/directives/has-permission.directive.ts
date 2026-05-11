@@ -6,7 +6,7 @@ import { AuthService } from '../../core/services/auth.service';
   standalone: true,
 })
 export class HasPermissionDirective implements OnInit, OnChanges {
-  @Input('hasPermission') permission!: string;
+  @Input('hasPermission') permission!: string | string[];
 
   private readonly auth = inject(AuthService);
   private readonly templateRef = inject(TemplateRef<unknown>);

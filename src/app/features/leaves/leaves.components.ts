@@ -292,7 +292,7 @@ export class LeaveListComponent implements OnInit {
 
         @if (form.get('startDate')?.value && form.get('endDate')?.value) {
           <div class="info-box">
-            <span class="material-icons" style="color:var(--info)">info</span>
+            <span class="material-icons" style="color:var(--sidebar-active-text)">info</span>
             Total leave: <strong>{{ totalDays }} day(s)</strong>
           </div>
         }

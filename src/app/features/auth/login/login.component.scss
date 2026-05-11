@@ -94,10 +94,10 @@
   align-items: center;
   gap: 8px;
   margin-bottom: 12px;
-  border: 1px solid rgba(239, 68, 68, 0.2);
+  border: 1px solid var(--sidebar-active-border);
   border-radius: var(--radius-sm);
-  background: var(--danger-dim);
-  color: var(--danger);
+  background: var(--sidebar-active-bg);
+  color: var(--sidebar-active-text);
   padding: 12px 16px;
   font-size: 14px;
 }

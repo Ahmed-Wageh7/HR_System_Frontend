@@ -1,0 +1,48 @@
+    @if (loading) {
+      <div class="card detail-loading">
+        <div class="spinner" style="width:28px;height:28px"></div>
+      </div>
+    } @else if (!staff) {
+      <div class="empty-state">
+        <span class="material-icons empty-icon">person_off</span>
+        <div class="empty-title">Staff not found</div>
+      </div>
+    } @else {
+      <div class="card">
+        <div class="detail-header">
+          <div class="detail-identity">
+            <div class="avatar avatar-lg">
+              @if (staff.user.avatar) {
+                <img [src]="staff.user.avatar" alt="" class="avatar-image">
+              } @else {
+                <span class="material-icons avatar-fallback-icon">account_circle</span>
+              }
+            </div>
+            <div>
+              <div class="page-title" style="font-size:24px">{{ staff.user.name }}</div>
+              <div class="page-subtitle">{{ staff.position || 'No position' }} • {{ staff.department?.name || 'No department' }}</div>
+            </div>
+          </div>
+
+          <div class="detail-actions">
+            <a *ngIf="!embedded" class="btn btn-secondary" [routerLink]="['/staff', staff._id]">
+              <span class="material-icons" style="font-size:16px">account_tree</span>
+              Open Full Workspace
+            </a>
+            <button *hasPermission="'staff:update'" class="btn btn-secondary" (click)="startEdit()">
+              <span class="material-icons" style="font-size:16px">edit</span>
+              Edit
+            </button>
+          </div>
+        </div>
+
+        <div class="detail-grid">
+          <div class="detail-item"><span class="detail-label">Email</span><strong>{{ staff.user.email }}</strong></div>
+          <div class="detail-item"><span class="detail-label">Phone</span><strong>{{ staff.user.phone || '—' }}</strong></div>
+          <div class="detail-item"><span class="detail-label">Daily Salary</span><strong>{{ staff.dailySalary | currencyFormat }}</strong></div>
+          <div class="detail-item"><span class="detail-label">Join Date</span><strong>{{ staff.joinDate | dateFormat }}</strong></div>
+          <div class="detail-item"><span class="detail-label">Employee Code</span><strong>{{ staff.employeeCode || '—' }}</strong></div>
+          <div class="detail-item"><span class="detail-label">Leave Balance</span><strong>{{ staff.annualLeaveBalance ?? 0 }} days</strong></div>
+        </div>
+      </div>
+    }

@@ -137,13 +137,12 @@ export class TicketService {
     );
   }
 
+  getMyTickets(query: TicketQuery = {}): Observable<ApiResponse<Ticket[]>> {
+    return this.http.get<ApiResponse<Ticket[]>>(`${this.api}/tickets`, { params: this.buildParams(query) });
+  }
+
   getAll(query: TicketQuery = {}): Observable<ApiResponse<Ticket[]>> {
-    let params = new HttpParams();
-    Object.entries(query).forEach(([key, value]) => {
-      if (key === 'sort' && typeof value === 'string') value = this.normalizeSort(value);
-      if (value !== undefined && value !== '') params = params.set(key, String(value));
-    });
-    return this.http.get<ApiResponse<Ticket[]>>(`${this.api}/tickets`, { params });
+    return this.getMyTickets(query);
   }
 
   getById(id: string): Observable<ApiResponse<Ticket>> {
@@ -165,6 +164,15 @@ export class TicketService {
   private normalizeSort(sort: string): string {
     if (sort.includes('_asc') || sort.includes('_desc')) return sort;
     return sort.startsWith('-') ? `${sort.slice(1)}_desc` : `${sort}_asc`;
+  }
+
+  private buildParams(query: TicketQuery): HttpParams {
+    let params = new HttpParams();
+    Object.entries(query).forEach(([key, value]) => {
+      if (key === 'sort' && typeof value === 'string') value = this.normalizeSort(value);
+      if (value !== undefined && value !== '') params = params.set(key, String(value));
+    });
+    return params;
   }
 }
 

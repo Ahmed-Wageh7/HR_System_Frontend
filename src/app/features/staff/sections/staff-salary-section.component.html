@@ -1,0 +1,97 @@
+    <div class="section-stack">
+      <div class="card">
+        <div class="section-header">
+          <div>
+            <div class="section-title">Monthly Salary</div>
+            <div class="section-subtitle">Salary calculation, payment, adjustment, and bulk payroll in one place.</div>
+          </div>
+          <input type="month" class="form-control month-input" [(ngModel)]="selectedMonth" (ngModelChange)="loadSalary()">
+        </div>
+
+        @if (loading) {
+          <div class="section-loading"><div class="spinner" style="width:26px;height:26px"></div></div>
+        } @else if (!salary) {
+          <div class="empty-state compact-empty">
+            <span class="material-icons empty-icon">payments</span>
+            <div class="empty-title">No salary data for this month</div>
+          </div>
+        } @else {
+          <div class="salary-grid">
+            <div class="metric-card">
+              <span class="metric-label">Worked Days</span>
+              <strong>{{ salary.totalDaysWorked ?? 0 }}</strong>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">Late Days</span>
+              <strong>{{ salary.lateDays ?? 0 }}</strong>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">Absent Days</span>
+              <strong>{{ salary.absentDays ?? 0 }}</strong>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">Total Deductions</span>
+              <strong>{{ (salary.totalDeductions ?? 0) | currencyFormat }}</strong>
+            </div>
+            <div class="metric-card">
+              <span class="metric-label">Adjustments</span>
+              <strong>{{ salary.adjustments | currencyFormat }}</strong>
+            </div>
+            <div class="metric-card metric-card-highlight">
+              <span class="metric-label">Final Salary</span>
+              <strong>{{ salary.finalSalary | currencyFormat }}</strong>
+            </div>
+          </div>
+
+          <div class="salary-actions">
+            @if (salary.isPaid) {
+              <span class="badge badge-success salary-status">Paid {{ salary.paidAt ? (salary.paidAt | dateFormat:'MMM d, yyyy') : '' }}</span>
+            } @else {
+              <span class="badge badge-warning salary-status">Not Paid Yet</span>
+              <button *hasPermission="'salary:pay'" class="btn btn-success" [disabled]="actionLoading" (click)="payConfirmOpen = true">
+                <span class="material-icons" style="font-size:16px">payments</span>
+                Pay This Salary
+              </button>
+            }
+
+            <button *hasPermission="'salary:adjust'" class="btn btn-secondary" [disabled]="actionLoading" (click)="adjustOpen = !adjustOpen">
+              <span class="material-icons" style="font-size:16px">tune</span>
+              Adjust Salary
+            </button>
+
+            <button *hasPermission="'salary:pay'" class="btn btn-primary" [disabled]="actionLoading" (click)="bulkConfirmOpen = true">
+              <span class="material-icons" style="font-size:16px">sync_alt</span>
+              Pull Pay For Month
+            </button>
+          </div>
+
+          @if (adjustOpen) {
+            <div class="adjust-panel">
+              <input type="number" class="form-control" placeholder="Adjustment amount" [(ngModel)]="adjustments">
+              <button class="btn btn-primary" [disabled]="actionLoading" (click)="saveAdjustment()">Save Adjustment</button>
+              <button class="btn btn-ghost" [disabled]="actionLoading" (click)="adjustOpen = false">Cancel</button>
+            </div>
+          }
+        }
+      </div>
+    </div>
+
+    <app-confirm-dialog
+      [open]="payConfirmOpen"
+      title="Pay Staff Salary"
+      [message]="'Mark salary for ' + selectedMonth + ' as paid?'"
+      confirmText="Pay Salary"
+      confirmColor="primary"
+      (confirmed)="paySalary()"
+      (cancelled)="payConfirmOpen = false"
+    />
+
+    <app-confirm-dialog
+      [open]="bulkConfirmOpen"
+      title="Pull Pay Staff Salary"
+      [message]="'Queue salary payment for all staff for ' + selectedMonth + '?'"
+      confirmText="Queue Payroll"
+      confirmColor="primary"
+      (confirmed)="bulkPay()"
+      (cancelled)="bulkConfirmOpen = false"
+    />
