@@ -14,6 +14,11 @@ import { IconComponent } from '../../../shared/components/icon.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LoginComponent {
+  readonly demoCredentials = {
+    email: 'ahmed.gado@gmail.com',
+    password: 'Ahmed123',
+  };
+
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
@@ -23,8 +28,8 @@ export class LoginComponent {
   readonly errorMsg = signal('');
 
   form = this.fb.group({
-    email: ['', [Validators.required, Validators.email]],
-    password: ['', Validators.required],
+    email: [this.demoCredentials.email, [Validators.required, Validators.email]],
+    password: [this.demoCredentials.password, Validators.required],
   });
 
   onSubmit(): void {
