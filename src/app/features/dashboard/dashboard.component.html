@@ -61,66 +61,6 @@
     }
   </div>
 
-  <div class="insight-grid">
-    <div class="card insight-card attendance-insight">
-      <div class="insight-header">
-        <div>
-          <div class="fw-bold">Attendance Heatmap</div>
-          <div class="insight-subtitle">Daily attendance density across recent workdays</div>
-        </div>
-        <div class="insight-badge success">89% avg</div>
-      </div>
-      <div class="heatmap-grid">
-        @for (cell of [82,88,71,94,77,90,84,69,96,81,73,87,92,78,85,89,74,91,83,80]; track $index) {
-          <div
-            class="heatmap-cell"
-            [class.heat-low]="cell < 76"
-            [class.heat-mid]="cell >= 76 && cell < 88"
-            [class.heat-high]="cell >= 88"
-            [style.opacity]="0.68 + (cell / 320)"
-          >
-            <span>{{ cell }}</span>
-          </div>
-        }
-      </div>
-      <div class="heatmap-legend">
-        <span>Low</span>
-        <div class="legend-ramp"><i></i><i></i><i></i></div>
-        <span>High</span>
-      </div>
-    </div>
-
-    <div class="card insight-card salary-insight">
-      <div class="insight-header">
-        <div>
-          <div class="fw-bold">Salary Trend</div>
-          <div class="insight-subtitle">Payroll movement over the latest cycles</div>
-        </div>
-        <div class="insight-badge info">+12%</div>
-      </div>
-      <div class="trend-shell">
-        <div class="trend-axis">
-          <span>High</span>
-          <span>Mid</span>
-          <span>Low</span>
-        </div>
-        <div class="trend-chart">
-          @for (bar of [{label:'Jan', value:42}, {label:'Feb', value:58}, {label:'Mar', value:53}, {label:'Apr', value:72}, {label:'May', value:65}, {label:'Jun', value:81}, {label:'Jul', value:77}, {label:'Aug', value:88}]; track bar.label) {
-            <div class="trend-point">
-              <div class="trend-value">{{ bar.value }}%</div>
-              <div class="trend-bar" [style.height.%]="bar.value"></div>
-              <div class="trend-label">{{ bar.label }}</div>
-            </div>
-          }
-        </div>
-      </div>
-      <div class="trend-footer">
-        <span><i class="dot growth"></i>Paid cycle growth</span>
-        <span><i class="dot target"></i>Target range</span>
-      </div>
-    </div>
-  </div>
-
   <div class="dashboard-bottom">
     <div class="card">
       <div class="flex items-center justify-between mb-16">

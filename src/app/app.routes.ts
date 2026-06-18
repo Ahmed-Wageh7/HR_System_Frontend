@@ -128,12 +128,6 @@ export const appRoutes: Routes = [
         title: 'Notifications',
         loadComponent: () => import('./features/features.components').then(m => m.NotificationCenterComponent),
       },
-      {
-        path: 'company-settings',
-        title: 'Company Settings',
-        canActivate: [adminGuard],
-        loadComponent: () => import('./features/features.components').then(m => m.CompanySettingsComponent),
-      },
 
       // Tickets
       {

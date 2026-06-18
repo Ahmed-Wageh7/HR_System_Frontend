@@ -60,7 +60,6 @@ export class AdminLayoutComponent implements OnInit {
     { label: 'Audit Logs', icon: 'history', route: '/audit-logs', adminOnly: true },
     { label: 'Tickets', icon: 'confirmation_number', route: '/tickets' },
     { label: 'Notifications', icon: 'notifications', route: '/notifications' },
-    { label: 'Company Settings', icon: 'settings', route: '/company-settings', adminOnly: true },
     { label: 'Profile', icon: 'manage_accounts', route: '/profile' },
   ];
 
